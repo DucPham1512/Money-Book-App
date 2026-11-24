@@ -139,7 +139,7 @@ class Repository {
           : Category(
               id: tx.categoryId!,
               name: row.read<String>('c_name'),
-              flow: tx.kind == TxKind.income ? 'income' : 'expense',
+              flow: tx.kind.categoryFlow,
               iconKey: row.read<String?>('c_icon'),
               colorValue: row.read<int?>('c_color'),
               isArchived: false,

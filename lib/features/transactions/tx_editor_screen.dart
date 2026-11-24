@@ -4,19 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/db/repository.dart';
 import '../../core/domain/bill.dart';
 import '../../core/domain/tx_kind.dart';
-import '../../core/format/dates.dart';
 import '../../core/format/money.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
 import 'bill_section.dart';
-import 'spend_impact_note.dart';
 import 'split_bill_section.dart';
 import 'split_state.dart';
-import 'widgets/category_picker.dart';
+import 'tx_editor_actions.dart';
+import 'tx_form_rules.dart';
 import 'widgets/fund_picker.dart';
+import 'widgets/impact_note_section.dart';
 import 'widgets/kind_selector.dart';
-import 'widgets/person_picker.dart';
-import 'widgets/wallet_dropdown.dart';
+import 'widgets/occurred_at_tile.dart';
+import 'widgets/paid_by_other_section.dart';
+import 'widgets/tx_kind_fields.dart';
 
 /// Mở màn hình ghi giao dịch. Gom một chỗ để mọi nơi trong app gọi giống nhau.
 Future<void> openTxEditor(
@@ -98,22 +99,29 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
 
   bool get _isEditing => widget.editing != null;
 
-  /// Có được chia tiền ở trạng thái hiện tại không. Trả dùm và hoá đơn chi
-  /// tiết không đi cùng nhau: trả dùm tách hoá đơn thành nhiều giao dịch.
-  /// Người khác trả thì mình chỉ ghi phần của mình, không có gì để chia.
-  bool get _canSplit =>
-      !_isEditing &&
-      _kind == TxKind.expense &&
-      !_bill.enabled &&
-      !_paidByOther;
+  /// Ảnh chụp các lựa chọn hiện tại. Mọi quy tắc (công tắc nào được bật, đổi
+  /// loại thì dọn gì, chọn thiếu gì) nằm ở [TxForm]; màn hình chỉ giữ trạng
+  /// thái.
+  TxForm get _form => TxForm(
+    kind: _kind,
+    walletFromId: _walletFromId,
+    walletToId: _walletToId,
+    categoryId: _categoryId,
+    personId: _personId,
+    fundId: _fundId,
+    paidByOther: _paidByOther,
+    splitEnabled: _split.enabled,
+    billEnabled: _bill.enabled,
+    isEditing: _isEditing,
+  );
 
-  bool get _canPayByOther => _kind.canBePaidByOther && !_split.enabled;
+  bool get _canSplit => _form.canSplit;
 
-  bool get _isPaidByOther => _canPayByOther && _paidByOther;
+  bool get _canPayByOther => _form.canPayByOther;
 
-  bool get _canBill => _kind == TxKind.expense && !_split.enabled;
+  bool get _canBill => _form.canBill;
 
-  bool get _usesBill => _canBill && _bill.enabled;
+  bool get _usesBill => _form.usesBill;
 
   /// Số tiền sẽ ghi: tổng hoá đơn nếu đang dùng hoá đơn, không thì số gõ tay.
   int get _amount =>
@@ -164,36 +172,33 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     });
   }
 
-  /// Có lưu được các trường đang nhập thành mẫu chi tiêu không.
-  bool get _canSaveAsTemplate =>
-      !_isEditing &&
-      _kind == TxKind.expense &&
-      !_split.enabled &&
-      !_bill.enabled &&
-      !_paidByOther;
+  /// Việc với dữ liệu (ghi, xoá, lưu mẫu) nằm ở [TxEditorActions]; màn hình
+  /// chỉ lo thông báo, đóng màn và hộp thoại.
+  TxEditorActions get _actions => TxEditorActions(ref.read(repositoryProvider));
+
+  /// Hiện câu báo của một thao tác, kèm nút Hoàn tác nếu thao tác có.
+  void _showResult(TxActionResult result) {
+    final undo = result.undo;
+    showSnack(
+      context,
+      result.message,
+      action: undo == null
+          ? null
+          : SnackBarAction(label: 'Hoàn tác', onPressed: undo),
+    );
+  }
 
   /// Lưu các trường đang nhập thành một mẫu, để lần sau ghi một chạm. Không
   /// đóng màn hình — người dùng vẫn ghi khoản này như thường.
   Future<void> _saveAsTemplate() async {
-    final note = _noteController.text.trim();
-    if (note.isEmpty && _categoryId == null) {
-      showSnack(context, 'Nhập ghi chú hoặc chọn danh mục để đặt tên cho mẫu');
-      return;
-    }
-    final amount = parseVnd(_amountController.text);
-    await ref.read(repositoryProvider).insertTemplate(
-          note: note.isEmpty ? null : note,
-          amount: amount > 0 ? amount : null,
-          walletId: _walletFromId,
-          categoryId: _categoryId,
-        );
-    if (!mounted) return;
-    showSnack(
-      context,
-      amount > 0 && _walletFromId != null && _categoryId != null
-          ? 'Đã lưu mẫu. Lần sau bấm ở màn Tổng quan là ghi xong'
-          : 'Đã lưu mẫu. Các trường để trống sẽ được hỏi khi dùng',
+    final result = await _actions.saveAsTemplate(
+      note: _noteController.text.trim(),
+      amount: parseVnd(_amountController.text),
+      walletId: _walletFromId,
+      categoryId: _categoryId,
     );
+    if (!mounted) return;
+    showSnack(context, result.message);
   }
 
   void _applyPresetWallet() {
@@ -215,104 +220,34 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     super.dispose();
   }
 
-  /// Đổi loại giao dịch thì phải dọn những trường không còn ý nghĩa, nếu không
-  /// sẽ ghi xuống DB một danh mục hoặc một người chẳng liên quan gì.
+  /// Đổi loại giao dịch: [TxForm.afterKindChange] quyết định dọn trường nào.
   void _changeKind(TxKind next) {
     if (next == _kind) return;
+    final f = _form.afterKindChange(next);
     setState(() {
-      final previous = _kind;
-      _kind = next;
-
-      if (!next.needsCategory) _categoryId = null;
-      if (!next.needsPerson) _personId = null;
-
-      // Chia tiền và lấy từ quỹ chỉ có nghĩa với một khoản chi.
-      if (next != TxKind.expense) {
-        _split.enabled = false;
-        _fundId = null;
-      }
-      if (!next.canBePaidByOther) _paidByOther = false;
-
-      if (next == TxKind.transfer) {
-        _walletFromId ??= _walletToId;
-        _walletToId = null;
-      } else {
-        // Giữ lại ví người dùng đang chọn khi đổi giữa các loại một chân ví,
-        // để đỡ phải chọn lại.
-        final currentWallet = previous.needsWalletFrom
-            ? _walletFromId
-            : (previous.needsWalletTo ? _walletToId : null);
-        _walletFromId = null;
-        _walletToId = null;
-        if (next.needsWalletFrom) {
-          _walletFromId = currentWallet;
-        } else if (next.needsWalletTo) {
-          _walletToId = currentWallet;
-        }
-      }
+      _kind = f.kind;
+      _walletFromId = f.walletFromId;
+      _walletToId = f.walletToId;
+      _categoryId = f.categoryId;
+      _personId = f.personId;
+      _fundId = f.fundId;
+      _paidByOther = f.paidByOther;
+      _split.enabled = f.splitEnabled;
     });
   }
 
   Future<void> _pickDateTime() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _occurredAt,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'Chọn ngày giao dịch',
-    );
-    if (date == null || !mounted) return;
-
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_occurredAt),
-      helpText: 'Chọn giờ',
-    );
-    if (!mounted) return;
-
-    setState(() {
-      _occurredAt = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time?.hour ?? _occurredAt.hour,
-        time?.minute ?? _occurredAt.minute,
-      );
-    });
+    final picked = await pickOccurredAt(context, _occurredAt);
+    if (picked == null || !mounted) return;
+    setState(() => _occurredAt = picked);
   }
 
-  String? _validateSelection() {
-    if (_kind.needsCategory && _categoryId == null) {
-      return 'Hãy chọn danh mục';
-    }
-    if (_kind.needsPerson && _personId == null) {
-      return 'Hãy chọn người';
-    }
-    if (_isPaidByOther) {
-      return _personId == null ? 'Hãy chọn người đã trả dùm' : null;
-    }
-    if (_kind == TxKind.transfer) {
-      if (_walletFromId == null) return 'Hãy chọn ví nguồn';
-      if (_walletToId == null) return 'Hãy chọn ví nhận';
-      // Nạp / rút quỹ ngay trong ví giữ quỹ thì hai chân trùng nhau là đúng.
-      if (_walletFromId == _walletToId && _fundId == null) {
-        return 'Ví nguồn và ví nhận phải khác nhau';
-      }
-      return null;
-    }
-    if (_kind.needsWalletFrom && _walletFromId == null) {
-      return 'Hãy chọn ví';
-    }
-    if (_kind.needsWalletTo && _walletToId == null) {
-      return 'Hãy chọn ví';
-    }
-    return null;
-  }
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final error = _validateSelection();
+    final form = _form;
+    final error = form.validateSelection();
     if (error != null) {
       showSnack(context, error);
       return;
@@ -328,98 +263,36 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
 
     final amount = _amount;
     final note = _noteController.text.trim();
-    final repo = ref.read(repositoryProvider);
-    final bill = _usesBill ? _bill.lines : const <BillLine>[];
-    // Người khác trả thì tiền không qua ví hay quỹ nào. Khoản chi thường thì
-    // không mang người theo — có người là thành nợ.
-    final walletFromId = _isPaidByOther ? null : _walletFromId;
-    final fundId = _isPaidByOther ? null : _fundId;
-    final personId = _kind.needsPerson || _isPaidByOther ? _personId : null;
 
-    if (_canSplit && _split.enabled) {
+    final TxActionResult result;
+    if (form.usesSplit) {
       final splitError = _split.validate(amount);
       if (splitError != null) {
         showSnack(context, splitError);
         return;
       }
-      await _saveSplitBill(repo, amount, note);
-      return;
-    }
-
-    if (_isEditing) {
-      await repo.updateTransaction(
-        id: widget.editing!.tx.id,
-        kind: _kind,
-        amount: amount,
+      result = await _actions.saveSplit(
+        form,
+        myShare: _split.myShareFor(amount),
+        shares: _split.sharesFor(amount),
         occurredAt: _occurredAt,
-        walletFromId: walletFromId,
-        walletToId: _walletToId,
-        categoryId: _categoryId,
-        personId: personId,
-        fundId: fundId,
-        note: note.isEmpty ? null : note,
-        // null là giữ nguyên hoá đơn đang có trong DB.
-        bill: _billLoading ? null : bill,
+        note: note,
       );
     } else {
-      await repo.addTransaction(
-        kind: _kind,
+      result = await _actions.save(
+        form,
         amount: amount,
         occurredAt: _occurredAt,
-        walletFromId: walletFromId,
-        walletToId: _walletToId,
-        categoryId: _categoryId,
-        personId: personId,
-        fundId: fundId,
-        note: note.isEmpty ? null : note,
-        bill: bill,
+        note: note,
+        bill: _usesBill ? _bill.lines : const <BillLine>[],
+        editingId: widget.editing?.tx.id,
+        keepExistingBill: _billLoading,
       );
     }
 
     if (!mounted) return;
     Navigator.pop(context);
-    showSnack(
-      context,
-      _isEditing
-          ? 'Đã cập nhật'
-          : _isPaidByOther
-              ? 'Đã ghi ${formatVnd(amount)}, bạn nợ lại người trả dùm'
-              : 'Đã ghi giao dịch',
-    );
-  }
-
-  Future<void> _saveSplitBill(Repository repo, int total, String note) async {
-    final shares = _split.sharesFor(total);
-    final myShare = _split.myShareFor(total);
-
-    final ids = await repo.addSplitBill(
-      walletFromId: _walletFromId!,
-      myShare: myShare,
-      sharesByPerson: shares,
-      occurredAt: _occurredAt,
-      categoryId: _categoryId,
-      note: note.isEmpty ? null : note,
-    );
-
-    if (!mounted) return;
-    Navigator.pop(context);
-
-    final theirs = shares.values.fold<int>(0, (sum, v) => sum + v);
-    showSnack(
-      context,
-      myShare > 0
-          ? 'Đã ghi ${formatVnd(myShare)} tiền của bạn và '
-              '${formatVnd(theirs)} cho ${shares.length} người nợ lại'
-          : 'Đã ghi ${formatVnd(theirs)} cho ${shares.length} người nợ lại',
-      action: SnackBarAction(
-        label: 'Hoàn tác',
-        onPressed: () async {
-          for (final id in ids) {
-            await repo.softDeleteTransaction(id);
-          }
-        },
-      ),
-    );
+    _showResult(result);
   }
 
   @override
@@ -430,7 +303,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Sửa giao dịch' : 'Ghi giao dịch'),
         actions: [
-          if (_canSaveAsTemplate)
+          if (_form.canSaveAsTemplate)
             IconButton(
               icon: const Icon(Icons.bookmark_add_outlined),
               tooltip: 'Lưu làm mẫu',
@@ -468,7 +341,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                   AmountField(
                     controller: _amountController,
                     autofocus: !_isEditing,
-                    label: _canSplit && _split.enabled
+                    label: _form.usesSplit
                         ? 'Tổng hoá đơn'
                         : 'Số tiền',
                     // Bảng chia tiền và dòng "khoản này lấy tiền từ đâu" đều
@@ -477,8 +350,15 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                ..._buildFieldsForKind(walletList),
-                if (_kind == TxKind.expense && !_isPaidByOther) ...[
+                ...txKindFields(
+                  form: _form,
+                  wallets: walletList,
+                  onWalletFrom: (v) => setState(() => _walletFromId = v),
+                  onWalletTo: (v) => setState(() => _walletToId = v),
+                  onCategory: (v) => setState(() => _categoryId = v),
+                  onPerson: (v) => setState(() => _personId = v),
+                ),
+                if (_form.showsFundPicker) ...[
                   const SizedBox(height: 12),
                   FundPicker(
                     value: _fundId,
@@ -494,7 +374,12 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                 ],
                 if (_canPayByOther) ...[
                   const SizedBox(height: 8),
-                  _paidByOtherSection(),
+                  PaidByOtherSection(
+                    value: _paidByOther,
+                    onChanged: (v) => setState(() => _paidByOther = v),
+                    personId: _personId,
+                    onPersonChanged: (v) => setState(() => _personId = v),
+                  ),
                 ],
                 if (_canSplit) ...[
                   const SizedBox(height: 8),
@@ -505,19 +390,14 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                _impactNote(),
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  tileColor: Theme.of(context)
-                      .colorScheme
-                      .surfaceContainerHighest
-                      .withValues(alpha: 0.4),
-                  leading: const Icon(Icons.event),
-                  title: const Text('Thời điểm'),
-                  subtitle: Text(formatDateTime(_occurredAt)),
-                  trailing: const Icon(Icons.chevron_right),
+                ImpactNoteSection(
+                  form: _form,
+                  occurredAt: _occurredAt,
+                  total: _amount,
+                  myShareFor: _split.myShareFor,
+                ),
+                OccurredAtTile(
+                  occurredAt: _occurredAt,
                   onTap: _pickDateTime,
                 ),
                 const SizedBox(height: 12),
@@ -545,7 +425,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
             label: Text(
               _isEditing
                   ? 'Lưu thay đổi'
-                  : (_canSplit && _split.enabled)
+                  : _form.usesSplit
                       ? 'Ghi và chia tiền'
                       : 'Ghi lại',
             ),
@@ -555,133 +435,12 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     );
   }
 
-  /// Khoản chi này lấy tiền từ đâu. Chỉ hiện khi ghi mới một khoản làm tiền
-  /// ra khỏi ví trong tháng này — sửa khoản cũ thì số tự do đã tính nó rồi, còn
-  /// chi từ quỹ thì không đụng tới tiền tự do.
-  Widget _impactNote() {
-    const none = SizedBox.shrink();
-    if (_isEditing) return none;
-    final today = ref.watch(todayProvider);
-    if (monthKeyOf(_occurredAt) != monthKeyOf(today)) return none;
-
-    final total = _amount;
-    final Widget note;
-    if (_kind == TxKind.lend) {
-      note = SpendImpactNote(amount: 0, categoryId: null, outside: total);
-    } else if (_kind != TxKind.expense ||
-        (_fundId != null && !_isPaidByOther)) {
-      return none;
-    } else if (_canSplit && _split.enabled) {
-      final mine = _split.myShareFor(total);
-      note = SpendImpactNote(
-        amount: mine,
-        categoryId: _categoryId,
-        outside: total - mine,
-      );
-    } else {
-      note = SpendImpactNote(amount: total, categoryId: _categoryId);
-    }
-    return Padding(padding: const EdgeInsets.only(bottom: 12), child: note);
-  }
-
-  /// Công tắc "người khác trả dùm", bật lên thì chọn người mình nợ. Nằm cạnh
-  /// công tắc chia tiền vì cả hai đều trả lời câu "ai đã trả hoá đơn này".
-  Widget _paidByOtherSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _paidByOther,
-          onChanged: (v) => setState(() => _paidByOther = v),
-          title: const Text('Người khác trả dùm'),
-          subtitle: const Text(
-            'Ví không bị trừ, bạn nợ lại người đó. Chỉ ghi phần của bạn',
-          ),
-        ),
-        if (_paidByOther) ...[
-          const SizedBox(height: 4),
-          PersonPicker(
-            label: 'Ai trả dùm',
-            value: _personId,
-            onChanged: (v) => setState(() => _personId = v),
-          ),
-        ],
-      ],
-    );
-  }
-
-  List<Widget> _buildFieldsForKind(List<WalletWithBalance> wallets) {
-    final widgets = <Widget>[];
-
-    if (_kind == TxKind.transfer) {
-      widgets.addAll([
-        WalletDropdown(
-          label: 'Từ ví',
-          icon: Icons.logout,
-          wallets: wallets,
-          value: _walletFromId,
-          onChanged: (v) => setState(() => _walletFromId = v),
-        ),
-        const SizedBox(height: 12),
-        WalletDropdown(
-          label: 'Đến ví',
-          icon: Icons.login,
-          wallets: wallets,
-          value: _walletToId,
-          excludeId: _fundId == null ? _walletFromId : null,
-          onChanged: (v) => setState(() => _walletToId = v),
-        ),
-      ]);
-    } else if (_kind.needsWalletFrom && !_isPaidByOther) {
-      // Người khác trả thì không có ví nào bị trừ, nên ẩn ô chọn ví.
-      widgets.add(WalletDropdown(
-        label: 'Trừ vào ví',
-        icon: Icons.account_balance_wallet_outlined,
-        wallets: wallets,
-        value: _walletFromId,
-        onChanged: (v) => setState(() => _walletFromId = v),
-      ));
-    } else if (_kind.needsWalletTo) {
-      widgets.add(WalletDropdown(
-        label: 'Cộng vào ví',
-        icon: Icons.account_balance_wallet_outlined,
-        wallets: wallets,
-        value: _walletToId,
-        onChanged: (v) => setState(() => _walletToId = v),
-      ));
-    }
-
-    if (_kind.needsCategory) {
-      widgets
-        ..add(const SizedBox(height: 12))
-        ..add(CategoryPicker(
-          flow: _kind == TxKind.income ? 'income' : 'expense',
-          value: _categoryId,
-          onChanged: (v) => setState(() => _categoryId = v),
-        ));
-    }
-
-    if (_kind.needsPerson) {
-      widgets
-        ..add(const SizedBox(height: 12))
-        ..add(PersonPicker(
-          value: _personId,
-          onChanged: (v) => setState(() => _personId = v),
-        ));
-    }
-
-    return widgets;
-  }
-
   Future<void> _confirmDelete() async {
     final editing = widget.editing!;
-    final groupId = editing.tx.groupId;
-    final repo = ref.read(repositoryProvider);
 
     // Giao dịch trả dùm được ghi thành một cặp; xoá lẻ một nửa sẽ để lại khoản
     // nợ mồ côi, nên phải hỏi rõ.
-    final groupCount = groupId == null ? 0 : await repo.countInGroup(groupId);
+    final groupCount = await _actions.groupSize(editing);
     if (!mounted) return;
 
     final ok = await confirmDialog(
@@ -694,30 +453,9 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     );
     if (!ok || !mounted) return;
 
-    if (groupCount > 1) {
-      final ids = await repo.softDeleteGroup(groupId!);
-      if (!mounted) return;
-      Navigator.pop(context);
-      showSnack(
-        context,
-        'Đã xoá $groupCount giao dịch',
-        action: SnackBarAction(
-          label: 'Hoàn tác',
-          onPressed: () => repo.restoreMany(ids),
-        ),
-      );
-    } else {
-      await repo.softDeleteTransaction(editing.tx.id);
-      if (!mounted) return;
-      Navigator.pop(context);
-      showSnack(
-        context,
-        'Đã xoá giao dịch',
-        action: SnackBarAction(
-          label: 'Hoàn tác',
-          onPressed: () => repo.restoreTransaction(editing.tx.id),
-        ),
-      );
-    }
+    final result = await _actions.delete(editing, groupCount: groupCount);
+    if (!mounted) return;
+    Navigator.pop(context);
+    _showResult(result);
   }
 }

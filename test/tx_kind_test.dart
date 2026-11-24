@@ -177,4 +177,37 @@ void main() {
       }
     });
   });
+
+  group('cờ cho màn ghi giao dịch', () {
+    // Bảng chân lý cho mọi loại: màn ghi dựng form theo các cờ này, nên thêm
+    // một loại mới phải đi qua đây chứ không phải sửa màn hình.
+    const expenseOnly = {TxKind.expense};
+    test('chia tiền, hoá đơn, lưu mẫu, lấy từ quỹ, tính vào hạn mức', () {
+      for (final k in TxKind.values) {
+        final isExpense = expenseOnly.contains(k);
+        expect(k.canSplit, isExpense, reason: k.name);
+        expect(k.canHaveBill, isExpense, reason: k.name);
+        expect(k.canSaveAsTemplate, isExpense, reason: k.name);
+        expect(k.canUseFund, isExpense, reason: k.name);
+        expect(k.countsInBudgets, isExpense, reason: k.name);
+      }
+    });
+
+    test('chỉ chuyển ví cần đủ cả hai chân', () {
+      for (final k in TxKind.values) {
+        expect(k.requiresBothWallets, k == TxKind.transfer, reason: k.name);
+      }
+    });
+
+    test('chỉ cho mượn là tiền ra ngoài mọi hạn mức', () {
+      for (final k in TxKind.values) {
+        expect(k.isFreeMoneyOutflow, k == TxKind.lend, reason: k.name);
+      }
+    });
+
+    test('chiều danh mục', () {
+      expect(TxKind.income.categoryFlow, 'income');
+      expect(TxKind.expense.categoryFlow, 'expense');
+    });
+  });
 }

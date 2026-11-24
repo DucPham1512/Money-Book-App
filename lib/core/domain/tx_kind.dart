@@ -140,6 +140,36 @@ extension TxKindX on TxKind {
   /// [debtDelta] với `hasPerson: true`.
   bool get canBePaidByOther => this == TxKind.expense;
 
+  /// Có chia được hoá đơn cho nhiều người (trả dùm) không.
+  bool get canSplit => this == TxKind.expense;
+
+  /// Có gắn được hoá đơn chi tiết không. Có hoá đơn thì số tiền là tổng hoá
+  /// đơn.
+  bool get canHaveBill => this == TxKind.expense;
+
+  /// Có lưu được thành mẫu chi tiêu không (mẫu luôn ghi ra một khoản chi).
+  bool get canSaveAsTemplate => this == TxKind.expense;
+
+  /// Có lấy tiền từ một quỹ ra chi được không. Nạp / rút quỹ là chuyển ví,
+  /// không đi qua ô chọn quỹ này.
+  bool get canUseFund => this == TxKind.expense;
+
+  /// Có tính vào hạn mức ngân sách không. Cùng tinh thần với [countsInStats]:
+  /// chỉ tiền thực sự tiêu mới làm vơi hạn mức.
+  bool get countsInBudgets => this == TxKind.expense;
+
+  /// Cần đủ cả ví nguồn lẫn ví nhận. [TxKind.adjust] dùng được cả hai chân
+  /// nhưng mỗi lần chỉ một, nên không tính.
+  bool get requiresBothWallets => this == TxKind.transfer;
+
+  /// Tiền ra khỏi ví nhưng nằm ngoài mọi hạn mức: tính vào tiền tự do đã
+  /// tiêu hôm nay (xem `watchSpentOutsideBudgetsOnDay`), không vào ngân sách.
+  bool get isFreeMoneyOutflow => this == TxKind.lend;
+
+  /// Chiều danh mục ứng với loại này ('income' hoặc 'expense'). Chỉ có nghĩa
+  /// khi [needsCategory].
+  String get categoryFlow => this == TxKind.income ? 'income' : 'expense';
+
   /// Thay đổi công nợ với người liên quan.
   ///
   ///   * Kết quả > 0: người đó nợ mình THÊM [amount].
