@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moneybook/core/db/autotrack_repository.dart';
 import 'package:moneybook/core/db/database.dart';
 import 'package:moneybook/core/providers.dart';
+import 'package:moneybook/core/theme.dart';
 import 'package:moneybook/features/autotrack/autotrack_providers.dart';
 import 'package:moneybook/features/autotrack/autotrack_settings_screen.dart';
 
@@ -80,13 +81,21 @@ void main() {
           dbProvider.overrideWithValue(db),
           autoTrackPlatformProvider.overrideWithValue(platform),
         ],
-        child: const MaterialApp(home: AutoTrackSettingsScreen()),
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light),
+          home: const AutoTrackSettingsScreen(),
+        ),
       ),
     );
     await settle(tester);
 
     expect(find.text('Chưa có quyền đọc thông báo'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Mở'), findsOneWidget);
+    expect(
+      tester.getSize(find.text('Chưa có quyền đọc thông báo')).width,
+      greaterThan(150),
+      reason: 'tiêu đề phải đủ chỗ.',
+    );
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
