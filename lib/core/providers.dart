@@ -63,10 +63,6 @@ final allWalletsProvider = StreamProvider<List<WalletWithBalance>>((ref) {
       .watchWalletsWithBalance(includeArchived: true);
 });
 
-final totalAssetsProvider = StreamProvider<int>((ref) {
-  return ref.watch(repositoryProvider).watchTotalAssets();
-});
-
 final expenseCategoriesProvider = StreamProvider<List<Category>>((ref) {
   return ref.watch(repositoryProvider).watchCategories(flow: 'expense');
 });

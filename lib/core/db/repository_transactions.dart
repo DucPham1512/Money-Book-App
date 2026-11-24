@@ -47,17 +47,7 @@ extension TransactionQueries on Repository {
 
     final sql =
         '''
-      SELECT t.*,
-             wf.name AS wf_name, wf.color_value AS wf_color, wf.icon_key AS wf_icon,
-             wt.name AS wt_name, wt.color_value AS wt_color, wt.icon_key AS wt_icon,
-             c.name  AS c_name,  c.color_value  AS c_color,  c.icon_key  AS c_icon,
-             p.name  AS p_name,  p.avatar_color AS p_color,
-             ${Repository._billCountExpr} AS bill_count
-      FROM transactions t
-      LEFT JOIN wallets    wf ON wf.id = t.wallet_from_id
-      LEFT JOIN wallets    wt ON wt.id = t.wallet_to_id
-      LEFT JOIN categories c  ON c.id  = t.category_id
-      LEFT JOIN people     p  ON p.id  = t.person_id
+      ${Repository._txViewSelect}
       WHERE ${where.join(' AND ')}
       ORDER BY t.occurred_at DESC, t.id DESC
       ${limit != null ? 'LIMIT $limit' : ''}
@@ -67,51 +57,22 @@ extension TransactionQueries on Repository {
         .customSelect(
           sql,
           variables: vars,
-          readsFrom: {
-            db.transactions,
-            db.wallets,
-            db.categories,
-            db.people,
-            db.billItems,
-          },
+          readsFrom: _txViewTables,
         )
         .watch()
         .map((rows) => rows.map(_rowToTxView).toList());
   }
 
+  /// Một giao dịch theo id, kể cả đã xoá mềm. Null nếu không có.
   Future<TxView?> getTransaction(int id) async {
-    final list = await watchTransactionById(id).first;
-    return list;
-  }
-
-  Stream<TxView?> watchTransactionById(int id) {
-    return db
+    final row = await db
         .customSelect(
-          '''
-          SELECT t.*,
-                 wf.name AS wf_name, wf.color_value AS wf_color, wf.icon_key AS wf_icon,
-                 wt.name AS wt_name, wt.color_value AS wt_color, wt.icon_key AS wt_icon,
-                 c.name  AS c_name,  c.color_value  AS c_color,  c.icon_key  AS c_icon,
-                 p.name  AS p_name,  p.avatar_color AS p_color,
-                 ${Repository._billCountExpr} AS bill_count
-          FROM transactions t
-          LEFT JOIN wallets    wf ON wf.id = t.wallet_from_id
-          LEFT JOIN wallets    wt ON wt.id = t.wallet_to_id
-          LEFT JOIN categories c  ON c.id  = t.category_id
-          LEFT JOIN people     p  ON p.id  = t.person_id
-          WHERE t.id = ?
-          ''',
+          '${Repository._txViewSelect} WHERE t.id = ?',
           variables: [Variable.withInt(id)],
-          readsFrom: {
-            db.transactions,
-            db.wallets,
-            db.categories,
-            db.people,
-            db.billItems,
-          },
+          readsFrom: _txViewTables,
         )
-        .watch()
-        .map((rows) => rows.isEmpty ? null : _rowToTxView(rows.first));
+        .getSingleOrNull();
+    return row == null ? null : _rowToTxView(row);
   }
 
   /// Thêm giao dịch.
@@ -325,38 +286,6 @@ extension TransactionQueries on Repository {
     });
 
     return ids;
-  }
-
-  /// Các giao dịch cùng một nhóm với giao dịch đã cho (kể cả chính nó).
-  Future<List<TxView>> transactionsInGroup(String groupId) async {
-    final rows = await db
-        .customSelect(
-          '''
-      SELECT t.*,
-             wf.name AS wf_name, wf.color_value AS wf_color, wf.icon_key AS wf_icon,
-             wt.name AS wt_name, wt.color_value AS wt_color, wt.icon_key AS wt_icon,
-             c.name  AS c_name,  c.color_value  AS c_color,  c.icon_key  AS c_icon,
-             p.name  AS p_name,  p.avatar_color AS p_color,
-             ${Repository._billCountExpr} AS bill_count
-      FROM transactions t
-      LEFT JOIN wallets    wf ON wf.id = t.wallet_from_id
-      LEFT JOIN wallets    wt ON wt.id = t.wallet_to_id
-      LEFT JOIN categories c  ON c.id  = t.category_id
-      LEFT JOIN people     p  ON p.id  = t.person_id
-      WHERE t.group_id = ? AND t.deleted_at IS NULL
-      ORDER BY t.kind DESC, t.id
-      ''',
-          variables: [Variable.withString(groupId)],
-          readsFrom: {
-            db.transactions,
-            db.wallets,
-            db.categories,
-            db.people,
-            db.billItems,
-          },
-        )
-        .get();
-    return rows.map(_rowToTxView).toList();
   }
 
   /// Điều chỉnh số dư ví cho khớp thực tế.

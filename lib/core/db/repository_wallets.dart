@@ -15,13 +15,7 @@ extension WalletQueries on Repository {
   }) {
     final sql =
         '''
-      SELECT w.*, (
-        w.initial_balance
-        + COALESCE((SELECT SUM(t.amount) FROM transactions t
-                    WHERE t.wallet_to_id = w.id AND t.deleted_at IS NULL), 0)
-        - COALESCE((SELECT SUM(t.amount) FROM transactions t
-                    WHERE t.wallet_from_id = w.id AND t.deleted_at IS NULL), 0)
-      ) AS balance
+      SELECT w.*, ${Repository._walletBalanceExpr} AS balance
       FROM wallets w
       ${includeArchived ? '' : 'WHERE w.is_archived = 0'}
       ORDER BY w.sort_order, w.id
@@ -54,13 +48,7 @@ extension WalletQueries on Repository {
     final row = await db
         .customSelect(
           '''
-      SELECT (
-        w.initial_balance
-        + COALESCE((SELECT SUM(t.amount) FROM transactions t
-                    WHERE t.wallet_to_id = w.id AND t.deleted_at IS NULL), 0)
-        - COALESCE((SELECT SUM(t.amount) FROM transactions t
-                    WHERE t.wallet_from_id = w.id AND t.deleted_at IS NULL), 0)
-      ) AS balance
+      SELECT ${Repository._walletBalanceExpr} AS balance
       FROM wallets w WHERE w.id = ?
       ''',
           variables: [Variable.withInt(walletId)],

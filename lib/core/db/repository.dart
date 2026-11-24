@@ -34,6 +34,20 @@ class Repository {
 
   // ----- Ví -------------------------------------------------------------
 
+  /// Số dư của ví `w`, theo đúng một công thức cho mọi loại giao dịch:
+  ///
+  ///   số dư = số dư ban đầu + (tổng tiền vào ví) - (tổng tiền ra khỏi ví)
+  ///
+  /// Đây là chỗ DUY NHẤT viết công thức này (xem CLAUDE.md); truy vấn nào cần
+  /// số dư một ví thì ghép biểu thức này vào với bí danh `w`.
+  static const _walletBalanceExpr = '''(
+        w.initial_balance
+        + COALESCE((SELECT SUM(t.amount) FROM transactions t
+                    WHERE t.wallet_to_id = w.id AND t.deleted_at IS NULL), 0)
+        - COALESCE((SELECT SUM(t.amount) FROM transactions t
+                    WHERE t.wallet_from_id = w.id AND t.deleted_at IS NULL), 0)
+      )''';
+
   /// Tổng số dư mọi ví chưa lưu trữ, dạng biểu thức SQL để ghép vào truy vấn
   /// khác (xem [watchSpendableAssets]).
   static const _totalAssetsExpr = '''(
@@ -150,6 +164,32 @@ class Repository {
 
   static const _billCountExpr =
       '(SELECT COUNT(*) FROM bill_items b WHERE b.transaction_id = t.id)';
+
+  /// Phần SELECT … JOIN dùng chung cho mọi truy vấn trả về [TxView]; nơi gọi
+  /// chỉ nối thêm WHERE / ORDER BY / LIMIT. Cột ở đây phải khớp với
+  /// [_rowToTxView], nên chỉ được viết một lần.
+  static const _txViewSelect = '''
+      SELECT t.*,
+             wf.name AS wf_name, wf.color_value AS wf_color, wf.icon_key AS wf_icon,
+             wt.name AS wt_name, wt.color_value AS wt_color, wt.icon_key AS wt_icon,
+             c.name  AS c_name,  c.color_value  AS c_color,  c.icon_key  AS c_icon,
+             p.name  AS p_name,  p.avatar_color AS p_color,
+             $_billCountExpr AS bill_count
+      FROM transactions t
+      LEFT JOIN wallets    wf ON wf.id = t.wallet_from_id
+      LEFT JOIN wallets    wt ON wt.id = t.wallet_to_id
+      LEFT JOIN categories c  ON c.id  = t.category_id
+      LEFT JOIN people     p  ON p.id  = t.person_id''';
+
+  /// Các bảng mọi truy vấn [TxView] đọc tới. Thiếu một bảng thì stream không
+  /// phát lại khi bảng đó đổi (ví dụ đổi tên ví).
+  Set<ResultSetImplementation<dynamic, dynamic>> get _txViewTables => {
+    db.transactions,
+    db.wallets,
+    db.categories,
+    db.people,
+    db.billItems,
+  };
 
   /// Chỉ dựng phần thông tin ví cần cho việc hiển thị; các cột còn lại không
   /// được dùng tới ở danh sách nên để giá trị trung tính.

@@ -107,15 +107,6 @@ extension FundQueries on Repository {
     });
   }
 
-  Future<int> countTransactionsOfFund(int fundId) async {
-    final t = db.transactions;
-    final countExp = t.id.count();
-    final q = db.selectOnly(t)
-      ..addColumns([countExp])
-      ..where(t.deletedAt.isNull() & t.fundId.equals(fundId));
-    return (await q.getSingle()).read(countExp) ?? 0;
-  }
-
   Future<int> nextFundSortOrder() async {
     final f = db.funds;
     final maxExp = f.sortOrder.max();

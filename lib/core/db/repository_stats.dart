@@ -75,29 +75,13 @@ extension StatsQueries on Repository {
     return db
         .customSelect(
           '''
-          SELECT t.*,
-                 wf.name AS wf_name, wf.color_value AS wf_color, wf.icon_key AS wf_icon,
-                 wt.name AS wt_name, wt.color_value AS wt_color, wt.icon_key AS wt_icon,
-                 c.name  AS c_name,  c.color_value  AS c_color,  c.icon_key  AS c_icon,
-                 p.name  AS p_name,  p.avatar_color AS p_color,
-                 ${Repository._billCountExpr} AS bill_count
-          FROM transactions t
-          LEFT JOIN wallets    wf ON wf.id = t.wallet_from_id
-          LEFT JOIN wallets    wt ON wt.id = t.wallet_to_id
-          LEFT JOIN categories c  ON c.id  = t.category_id
-          LEFT JOIN people     p  ON p.id  = t.person_id
+          ${Repository._txViewSelect}
           WHERE t.deleted_at IS NULL AND t.month_key = ? AND t.kind = 'expense'
           ORDER BY t.amount DESC
           LIMIT $limit
           ''',
           variables: [Variable.withInt(monthKey)],
-          readsFrom: {
-            db.transactions,
-            db.wallets,
-            db.categories,
-            db.people,
-            db.billItems,
-          },
+          readsFrom: _txViewTables,
         )
         .watch()
         .map((rows) => rows.map(_rowToTxView).toList());
