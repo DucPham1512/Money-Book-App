@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'db/database.dart';
 import 'db/repository.dart';
+import 'domain/category_flow.dart';
 import 'domain/free_money.dart';
 import 'format/dates.dart';
 
@@ -64,11 +65,11 @@ final allWalletsProvider = StreamProvider<List<WalletWithBalance>>((ref) {
 });
 
 final expenseCategoriesProvider = StreamProvider<List<Category>>((ref) {
-  return ref.watch(repositoryProvider).watchCategories(flow: 'expense');
+  return ref.watch(repositoryProvider).watchCategories(flow: CategoryFlow.expense);
 });
 
 final incomeCategoriesProvider = StreamProvider<List<Category>>((ref) {
-  return ref.watch(repositoryProvider).watchCategories(flow: 'income');
+  return ref.watch(repositoryProvider).watchCategories(flow: CategoryFlow.income);
 });
 
 final peopleProvider = StreamProvider<List<Person>>((ref) {

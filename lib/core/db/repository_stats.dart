@@ -31,9 +31,9 @@ extension StatsQueries on Repository {
   /// trước. Danh mục đã bị xoá gom chung vào "Chưa phân loại".
   Stream<List<CategoryTotal>> watchCategoryTotals(
     int monthKey, {
-    String flow = 'expense',
+    CategoryFlow flow = CategoryFlow.expense,
   }) {
-    final kind = flow == 'income' ? TxKind.income : TxKind.expense;
+    final kind = flow.txKind;
     return db
         .customSelect(
           '''

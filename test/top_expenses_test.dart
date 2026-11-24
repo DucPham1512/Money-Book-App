@@ -24,7 +24,7 @@ void main() {
         updatedAt: 0,
       ),
     );
-    food = (await repo.watchCategories(flow: 'expense').first).first.id;
+    food = (await repo.watchCategories(flow: CategoryFlow.expense).first).first.id;
   });
 
   tearDown(() async => db.close());

@@ -32,8 +32,8 @@ class Categories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 60)();
 
-  /// 'expense' hoặc 'income' — một danh mục chỉ thuộc một chiều.
-  TextColumn get flow => text()();
+  /// Một danh mục chỉ thuộc một chiều. Lưu bằng tên enum: 'expense' / 'income'.
+  TextColumn get flow => textEnum<CategoryFlow>()();
 
   TextColumn get iconKey => text().nullable()();
   IntColumn get colorValue => integer().nullable()();

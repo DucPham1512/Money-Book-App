@@ -206,8 +206,20 @@ void main() {
     });
 
     test('chiều danh mục', () {
-      expect(TxKind.income.categoryFlow, 'income');
-      expect(TxKind.expense.categoryFlow, 'expense');
+      expect(TxKind.income.categoryFlow, CategoryFlow.income);
+      expect(TxKind.expense.categoryFlow, CategoryFlow.expense);
+    });
+
+    test('mỗi chiều danh mục ứng đúng một loại giao dịch, và ngược lại', () {
+      for (final flow in CategoryFlow.values) {
+        expect(flow.txKind.needsCategory, isTrue, reason: flow.name);
+        expect(flow.txKind.categoryFlow, flow, reason: flow.name);
+      }
+    });
+
+    test('chiều danh mục lưu xuống DB bằng tên, khớp dữ liệu cũ', () {
+      expect(CategoryFlow.expense.name, 'expense');
+      expect(CategoryFlow.income.name, 'income');
     });
   });
 }

@@ -32,7 +32,7 @@ void main() {
         updatedAt: 0,
       ),
     );
-    food = (await repo.watchCategories(flow: 'expense').first).first.id;
+    food = (await repo.watchCategories(flow: CategoryFlow.expense).first).first.id;
     nam = await repo.insertPerson(
       PeopleCompanion.insert(name: 'Nam', createdAt: 0, updatedAt: 0),
     );

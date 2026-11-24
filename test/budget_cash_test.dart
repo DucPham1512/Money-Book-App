@@ -254,7 +254,7 @@ void main() {
       food = await repo.insertCategory(
         CategoriesCompanion.insert(
           name: 'Ăn uống',
-          flow: 'expense',
+          flow: CategoryFlow.expense,
           createdAt: 0,
           updatedAt: 0,
         ),

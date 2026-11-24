@@ -7,7 +7,7 @@ trong máy, không server, không tài khoản.
 
 ```powershell
 flutter run -d <device>                 # dev, hot reload bằng phím r
-flutter test                            # 365 test, chạy trong ~10 giây
+flutter test                            # 368 test, chạy trong ~10 giây
 flutter analyze
 dart run build_runner build             # BẮT BUỘC sau khi sửa lib/core/db/tables.dart
 flutter build apk --release --target-platform android-arm64
@@ -61,6 +61,8 @@ mượn là dòng nợ; điều chỉnh số dư càng không.
 ```
 lib/core/
   domain/tx_kind.dart      ★ enum 8 loại + logic dấu tiền + cờ cho màn ghi
+  domain/category_flow.dart  enum chiều danh mục (chi / thu), lưu bằng tên;
+                           tx_kind.dart export lại
   domain/tx_rules.dart     kiểm tra chung cho mọi đường ghi giao dịch (kể cả
                            nhập sao lưu): trả dùm không kèm ví, hoá đơn khớp tổng
   domain/budget_progress.dart  nhịp độ ngân sách, capBudgetsByCash (thuần Dart)

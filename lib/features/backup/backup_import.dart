@@ -46,6 +46,7 @@ extension BackupImport on BackupService {
 
     // Kiểm tra trước khi đụng vào DB: chế độ ghi đè xoá sạch dữ liệu cũ, nên
     // file hỏng phải bị chặn từ đầu chứ không phải giữa chừng.
+    _validateCategories(categoryRows);
     _validateTransactions(txRows, billRows);
 
     await db.transaction(() async {
@@ -88,7 +89,7 @@ extension BackupImport on BackupService {
             .insert(
               CategoriesCompanion.insert(
                 name: row['name'] as String,
-                flow: row['flow'] as String,
+                flow: CategoryFlow.values.byName(row['flow'] as String),
                 iconKey: Value(row['iconKey'] as String?),
                 colorValue: Value(row['colorValue'] as int?),
                 isArchived: Value(row['isArchived'] as bool? ?? false),
@@ -281,6 +282,17 @@ extension BackupImport on BackupService {
         templates: templateRows.length,
       ),
     );
+  }
+
+  void _validateCategories(List<Map<String, dynamic>> categoryRows) {
+    for (var i = 0; i < categoryRows.length; i++) {
+      final flow = categoryRows[i]['flow'];
+      if (!CategoryFlow.values.any((f) => f.name == flow)) {
+        throw BackupException(
+          'Danh mục thứ ${i + 1} trong file có chiều "$flow" không hợp lệ.',
+        );
+      }
+    }
   }
 
   /// Chặn những dòng giao dịch mà đường ghi thường ([Repository.addTransaction])

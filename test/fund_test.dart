@@ -41,7 +41,7 @@ void main() {
     catNhaCua = await repo.insertCategory(
       CategoriesCompanion.insert(
         name: 'Nhà cửa',
-        flow: 'expense',
+        flow: CategoryFlow.expense,
         createdAt: 0,
         updatedAt: 0,
       ),

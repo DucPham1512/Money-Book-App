@@ -42,7 +42,7 @@ void main() {
         updatedAt: 0,
       ),
     );
-    food = (await repo.watchCategories(flow: 'expense').first)
+    food = (await repo.watchCategories(flow: CategoryFlow.expense).first)
         .firstWhere((c) => c.name == 'Ăn uống')
         .id;
     final nam = await repo.insertPerson(

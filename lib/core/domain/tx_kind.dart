@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'category_flow.dart';
+
+export 'category_flow.dart';
+
 /// Loại giao dịch.
 ///
 /// Đây là nguồn sự thật DUY NHẤT về dấu tiền trong toàn bộ app.
@@ -166,9 +170,9 @@ extension TxKindX on TxKind {
   /// tiêu hôm nay (xem `watchSpentOutsideBudgetsOnDay`), không vào ngân sách.
   bool get isFreeMoneyOutflow => this == TxKind.lend;
 
-  /// Chiều danh mục ứng với loại này ('income' hoặc 'expense'). Chỉ có nghĩa
-  /// khi [needsCategory].
-  String get categoryFlow => this == TxKind.income ? 'income' : 'expense';
+  /// Chiều danh mục ứng với loại này. Chỉ có nghĩa khi [needsCategory].
+  CategoryFlow get categoryFlow =>
+      this == TxKind.income ? CategoryFlow.income : CategoryFlow.expense;
 
   /// Thay đổi công nợ với người liên quan.
   ///

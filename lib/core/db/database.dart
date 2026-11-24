@@ -166,7 +166,7 @@ class AppDatabase extends _$AppDatabase {
       await into(categories).insert(
         CategoriesCompanion.insert(
           name: name,
-          flow: 'expense',
+          flow: CategoryFlow.expense,
           iconKey: Value(icon),
           sortOrder: Value(order++),
           createdAt: now,
@@ -179,7 +179,7 @@ class AppDatabase extends _$AppDatabase {
       await into(categories).insert(
         CategoriesCompanion.insert(
           name: name,
-          flow: 'income',
+          flow: CategoryFlow.income,
           iconKey: Value(icon),
           sortOrder: Value(order++),
           createdAt: now,

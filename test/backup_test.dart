@@ -51,7 +51,7 @@ void main() {
     catAnUong = await sourceRepo.insertCategory(
       CategoriesCompanion.insert(
         name: 'Ăn uống',
-        flow: 'expense',
+        flow: CategoryFlow.expense,
         createdAt: 100,
         updatedAt: 100,
       ),
@@ -367,6 +367,28 @@ void main() {
         ),
         throwsA(isA<BackupException>()),
       );
+    });
+
+    test('danh mục có chiều lạ thì chặn, không đụng DB', () async {
+      await sourceRepo.addTransaction(
+        kind: TxKind.expense,
+        amount: 50000,
+        occurredAt: DateTime(2026, 9, 6),
+        walletFromId: wallet,
+        categoryId: catAnUong,
+      );
+      final data =
+          jsonDecode(await sourceBackup.buildJson()) as Map<String, dynamic>;
+      expect((data['categories'] as List).first['flow'], 'expense',
+          reason: 'file vẫn ghi chiều bằng chữ như trước');
+      (data['categories'] as List).first['flow'] = 'savings';
+      final before = await sourceRepo.watchTotalAssets().first;
+
+      await expectLater(
+        sourceBackup.import(jsonEncode(data), mode: ImportMode.replace),
+        throwsA(isA<BackupException>()),
+      );
+      expect(await sourceRepo.watchTotalAssets().first, before);
     });
 
     test('file hỏng không làm mất dữ liệu đang có', () async {

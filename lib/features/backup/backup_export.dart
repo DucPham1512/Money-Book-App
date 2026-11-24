@@ -62,7 +62,7 @@ extension BackupExport on BackupService {
   Map<String, dynamic> _categoryToMap(Category c) => {
     'id': c.id,
     'name': c.name,
-    'flow': c.flow,
+    'flow': c.flow.name,
     'iconKey': c.iconKey,
     'colorValue': c.colorValue,
     'isArchived': c.isArchived,

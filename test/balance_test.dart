@@ -31,7 +31,7 @@ void main() {
     );
   }
 
-  Future<int> newCategory(String name, String flow) {
+  Future<int> newCategory(String name, CategoryFlow flow) {
     final now = DateTime.now().millisecondsSinceEpoch;
     return repo.insertCategory(
       CategoriesCompanion.insert(
@@ -51,7 +51,7 @@ void main() {
 
     test('chi tiêu làm giảm số dư', () async {
       final wallet = await newWallet('Tiền mặt', 500000);
-      final cat = await newCategory('Ăn uống', 'expense');
+      final cat = await newCategory('Ăn uống', CategoryFlow.expense);
       await repo.addTransaction(
         kind: TxKind.expense,
         amount: 50000,
@@ -64,7 +64,7 @@ void main() {
 
     test('thu nhập làm tăng số dư', () async {
       final wallet = await newWallet('MB', 1000000);
-      final cat = await newCategory('Lương', 'income');
+      final cat = await newCategory('Lương', CategoryFlow.income);
       await repo.addTransaction(
         kind: TxKind.income,
         amount: 5000000,
@@ -130,7 +130,7 @@ void main() {
 
     test('xoá mềm giao dịch thì số dư quay lại như cũ', () async {
       final wallet = await newWallet('Tiền mặt', 500000);
-      final cat = await newCategory('Ăn uống', 'expense');
+      final cat = await newCategory('Ăn uống', CategoryFlow.expense);
       final txId = await repo.addTransaction(
         kind: TxKind.expense,
         amount: 50000,
@@ -200,7 +200,7 @@ void main() {
 
     test('điều chỉnh sau khi đã có giao dịch vẫn ra đúng số', () async {
       final wallet = await newWallet('Tiền mặt', 500000);
-      final cat = await newCategory('Ăn uống', 'expense');
+      final cat = await newCategory('Ăn uống', CategoryFlow.expense);
       await repo.addTransaction(
         kind: TxKind.expense,
         amount: 120000,
@@ -218,8 +218,8 @@ void main() {
     test('chỉ tính thu nhập và chi tiêu', () async {
       final w1 = await newWallet('Tiền mặt', 10000000);
       final w2 = await newWallet('MoMo', 0);
-      final catE = await newCategory('Ăn uống', 'expense');
-      final catI = await newCategory('Lương', 'income');
+      final catE = await newCategory('Ăn uống', CategoryFlow.expense);
+      final catI = await newCategory('Lương', CategoryFlow.income);
       final person = await repo.insertPerson(
         PeopleCompanion.insert(name: 'Nam', createdAt: 0, updatedAt: 0),
       );
@@ -266,7 +266,7 @@ void main() {
 
     test('giao dịch tháng khác không lọt vào', () async {
       final w = await newWallet('Tiền mặt', 10000000);
-      final cat = await newCategory('Ăn uống', 'expense');
+      final cat = await newCategory('Ăn uống', CategoryFlow.expense);
       await repo.addTransaction(
         kind: TxKind.expense,
         amount: 100000,
@@ -288,7 +288,7 @@ void main() {
 
     test('giao dịch cuối tháng lúc nửa đêm không bị xếp nhầm tháng', () async {
       final w = await newWallet('Tiền mặt', 10000000);
-      final cat = await newCategory('Ăn uống', 'expense');
+      final cat = await newCategory('Ăn uống', CategoryFlow.expense);
       // 23:30 ngày cuối tháng 9 theo giờ Việt Nam vẫn phải nằm ở tháng 9,
       // dù quy về UTC thì đã sang tháng 10.
       await repo.addTransaction(
@@ -306,7 +306,7 @@ void main() {
   group('ràng buộc dữ liệu', () {
     test('không xoá được ví đang có giao dịch', () async {
       final wallet = await newWallet('Tiền mặt', 500000);
-      final cat = await newCategory('Ăn uống', 'expense');
+      final cat = await newCategory('Ăn uống', CategoryFlow.expense);
       await repo.addTransaction(
         kind: TxKind.expense,
         amount: 50000,
@@ -320,7 +320,7 @@ void main() {
 
     test('xoá danh mục thì giao dịch còn nguyên, chỉ mất phân loại', () async {
       final wallet = await newWallet('Tiền mặt', 500000);
-      final cat = await newCategory('Ăn uống', 'expense');
+      final cat = await newCategory('Ăn uống', CategoryFlow.expense);
       await repo.addTransaction(
         kind: TxKind.expense,
         amount: 50000,

@@ -32,7 +32,7 @@ void main() {
     catCafe = await repo.insertCategory(
       CategoriesCompanion.insert(
         name: 'Cà phê',
-        flow: 'expense',
+        flow: CategoryFlow.expense,
         createdAt: 0,
         updatedAt: 0,
       ),

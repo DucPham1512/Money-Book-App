@@ -4,12 +4,12 @@ part of 'repository.dart';
 
 extension CategoryQueries on Repository {
   Stream<List<Category>> watchCategories({
-    String? flow,
+    CategoryFlow? flow,
     bool includeArchived = false,
   }) {
     final q = db.select(db.categories);
     if (!includeArchived) q.where((c) => c.isArchived.equals(false));
-    if (flow != null) q.where((c) => c.flow.equals(flow));
+    if (flow != null) q.where((c) => c.flow.equalsValue(flow));
     q.orderBy([
       (c) => OrderingTerm(expression: c.sortOrder),
       (c) => OrderingTerm(expression: c.id),
@@ -48,12 +48,12 @@ extension CategoryQueries on Repository {
     });
   }
 
-  Future<int> nextCategorySortOrder(String flow) async {
+  Future<int> nextCategorySortOrder(CategoryFlow flow) async {
     final c = db.categories;
     final maxExp = c.sortOrder.max();
     final q = db.selectOnly(c)
       ..addColumns([maxExp])
-      ..where(c.flow.equals(flow));
+      ..where(c.flow.equalsValue(flow));
     return ((await q.getSingle()).read(maxExp) ?? -1) + 1;
   }
 }

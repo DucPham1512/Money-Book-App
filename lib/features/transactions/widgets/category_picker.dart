@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/domain/category_flow.dart';
 import '../../../core/icons.dart';
 import '../../../core/providers.dart';
 import '../../categories/category_edit_screen.dart';
@@ -14,14 +15,17 @@ class CategoryPicker extends ConsumerWidget {
     required this.onChanged,
   });
 
-  final String flow;
+  final CategoryFlow flow;
   final int? value;
   final ValueChanged<int?> onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(
-      flow == 'income' ? incomeCategoriesProvider : expenseCategoriesProvider,
+      switch (flow) {
+        CategoryFlow.expense => expenseCategoriesProvider,
+        CategoryFlow.income => incomeCategoriesProvider,
+      },
     );
 
     return categories.when(

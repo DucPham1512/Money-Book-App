@@ -690,15 +690,15 @@ class $CategoriesTable extends Categories
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _flowMeta = const VerificationMeta('flow');
   @override
-  late final GeneratedColumn<String> flow = GeneratedColumn<String>(
-    'flow',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<CategoryFlow, String> flow =
+      GeneratedColumn<String>(
+        'flow',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<CategoryFlow>($CategoriesTable.$converterflow);
   static const VerificationMeta _iconKeyMeta = const VerificationMeta(
     'iconKey',
   );
@@ -805,14 +805,6 @@ class $CategoriesTable extends Categories
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
-    if (data.containsKey('flow')) {
-      context.handle(
-        _flowMeta,
-        flow.isAcceptableOrUnknown(data['flow']!, _flowMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_flowMeta);
-    }
     if (data.containsKey('icon_key')) {
       context.handle(
         _iconKeyMeta,
@@ -870,10 +862,12 @@ class $CategoriesTable extends Categories
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
-      flow: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}flow'],
-      )!,
+      flow: $CategoriesTable.$converterflow.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}flow'],
+        )!,
+      ),
       iconKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}icon_key'],
@@ -905,14 +899,17 @@ class $CategoriesTable extends Categories
   $CategoriesTable createAlias(String alias) {
     return $CategoriesTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<CategoryFlow, String, String> $converterflow =
+      const EnumNameConverter<CategoryFlow>(CategoryFlow.values);
 }
 
 class Category extends DataClass implements Insertable<Category> {
   final int id;
   final String name;
 
-  /// 'expense' hoặc 'income' — một danh mục chỉ thuộc một chiều.
-  final String flow;
+  /// Một danh mục chỉ thuộc một chiều. Lưu bằng tên enum: 'expense' / 'income'.
+  final CategoryFlow flow;
   final String? iconKey;
   final int? colorValue;
   final bool isArchived;
@@ -935,7 +932,11 @@ class Category extends DataClass implements Insertable<Category> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
-    map['flow'] = Variable<String>(flow);
+    {
+      map['flow'] = Variable<String>(
+        $CategoriesTable.$converterflow.toSql(flow),
+      );
+    }
     if (!nullToAbsent || iconKey != null) {
       map['icon_key'] = Variable<String>(iconKey);
     }
@@ -975,7 +976,9 @@ class Category extends DataClass implements Insertable<Category> {
     return Category(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
-      flow: serializer.fromJson<String>(json['flow']),
+      flow: $CategoriesTable.$converterflow.fromJson(
+        serializer.fromJson<String>(json['flow']),
+      ),
       iconKey: serializer.fromJson<String?>(json['iconKey']),
       colorValue: serializer.fromJson<int?>(json['colorValue']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
@@ -990,7 +993,9 @@ class Category extends DataClass implements Insertable<Category> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
-      'flow': serializer.toJson<String>(flow),
+      'flow': serializer.toJson<String>(
+        $CategoriesTable.$converterflow.toJson(flow),
+      ),
       'iconKey': serializer.toJson<String?>(iconKey),
       'colorValue': serializer.toJson<int?>(colorValue),
       'isArchived': serializer.toJson<bool>(isArchived),
@@ -1003,7 +1008,7 @@ class Category extends DataClass implements Insertable<Category> {
   Category copyWith({
     int? id,
     String? name,
-    String? flow,
+    CategoryFlow? flow,
     Value<String?> iconKey = const Value.absent(),
     Value<int?> colorValue = const Value.absent(),
     bool? isArchived,
@@ -1085,7 +1090,7 @@ class Category extends DataClass implements Insertable<Category> {
 class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<int> id;
   final Value<String> name;
-  final Value<String> flow;
+  final Value<CategoryFlow> flow;
   final Value<String?> iconKey;
   final Value<int?> colorValue;
   final Value<bool> isArchived;
@@ -1106,7 +1111,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   CategoriesCompanion.insert({
     this.id = const Value.absent(),
     required String name,
-    required String flow,
+    required CategoryFlow flow,
     this.iconKey = const Value.absent(),
     this.colorValue = const Value.absent(),
     this.isArchived = const Value.absent(),
@@ -1144,7 +1149,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   CategoriesCompanion copyWith({
     Value<int>? id,
     Value<String>? name,
-    Value<String>? flow,
+    Value<CategoryFlow>? flow,
     Value<String?>? iconKey,
     Value<int?>? colorValue,
     Value<bool>? isArchived,
@@ -1175,7 +1180,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       map['name'] = Variable<String>(name.value);
     }
     if (flow.present) {
-      map['flow'] = Variable<String>(flow.value);
+      map['flow'] = Variable<String>(
+        $CategoriesTable.$converterflow.toSql(flow.value),
+      );
     }
     if (iconKey.present) {
       map['icon_key'] = Variable<String>(iconKey.value);
@@ -6999,7 +7006,7 @@ typedef $$CategoriesTableCreateCompanionBuilder =
     CategoriesCompanion Function({
       Value<int> id,
       required String name,
-      required String flow,
+      required CategoryFlow flow,
       Value<String?> iconKey,
       Value<int?> colorValue,
       Value<bool> isArchived,
@@ -7011,7 +7018,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder =
     CategoriesCompanion Function({
       Value<int> id,
       Value<String> name,
-      Value<String> flow,
+      Value<CategoryFlow> flow,
       Value<String?> iconKey,
       Value<int?> colorValue,
       Value<bool> isArchived,
@@ -7107,10 +7114,11 @@ class $$CategoriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get flow => $composableBuilder(
-    column: $table.flow,
-    builder: (column) => ColumnFilters(column),
-  );
+  ColumnWithTypeConverterFilters<CategoryFlow, CategoryFlow, String> get flow =>
+      $composableBuilder(
+        column: $table.flow,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<String> get iconKey => $composableBuilder(
     column: $table.iconKey,
@@ -7288,7 +7296,7 @@ class $$CategoriesTableAnnotationComposer
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
-  GeneratedColumn<String> get flow =>
+  GeneratedColumnWithTypeConverter<CategoryFlow, String> get flow =>
       $composableBuilder(column: $table.flow, builder: (column) => column);
 
   GeneratedColumn<String> get iconKey =>
@@ -7423,7 +7431,7 @@ class $$CategoriesTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
-                Value<String> flow = const Value.absent(),
+                Value<CategoryFlow> flow = const Value.absent(),
                 Value<String?> iconKey = const Value.absent(),
                 Value<int?> colorValue = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
@@ -7445,7 +7453,7 @@ class $$CategoriesTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required String name,
-                required String flow,
+                required CategoryFlow flow,
                 Value<String?> iconKey = const Value.absent(),
                 Value<int?> colorValue = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
