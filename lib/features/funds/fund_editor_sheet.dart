@@ -224,11 +224,14 @@ class _FundEditorState extends ConsumerState<_FundEditor> {
               data: (list) => DropdownButtonFormField<int>(
                 initialValue: _walletId,
                 isExpanded: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Ví giữ tiền quỹ',
-                  helperText: 'Thường là ngân hàng ít dùng, để khỏi tiêu nhầm',
+                  helperText: _isEditing
+                      ? 'Không đổi được ví. Muốn chuyển thì lập quỹ mới ở '
+                          'ví kia, chuyển tiền sang rồi xoá quỹ này'
+                      : 'Thường là ngân hàng ít dùng, để khỏi tiêu nhầm',
                   helperMaxLines: 2,
-                  prefixIcon: Icon(Icons.account_balance_outlined),
+                  prefixIcon: const Icon(Icons.account_balance_outlined),
                 ),
                 items: [
                   for (final w in list)
@@ -257,7 +260,10 @@ class _FundEditorState extends ConsumerState<_FundEditor> {
                       ),
                     ),
                 ],
-                onChanged: (v) => setState(() => _walletId = v),
+                // null là khoá ô chọn: sửa quỹ không được đổi ví.
+                onChanged: _isEditing
+                    ? null
+                    : (v) => setState(() => _walletId = v),
               ),
             ),
             const SizedBox(height: 16),

@@ -404,6 +404,24 @@ void main() {
       expect(await repo.watchTotalInFunds().first, 0);
     });
 
+    test('không đổi được ví giữ quỹ, sửa các trường khác thì được', () async {
+      final fund = await newFund('Tiền KTX');
+      await deposit(fund, 2000000);
+      Future<Fund> read() =>
+          (db.select(db.funds)..where((f) => f.id.equals(fund))).getSingle();
+
+      final original = await read();
+      await expectLater(
+        repo.updateFund(original.copyWith(walletId: momo)),
+        throwsArgumentError,
+      );
+      expect((await read()).walletId, techcom);
+      expect(await repo.savedInFund(fund), 2000000);
+
+      await repo.updateFund(original.copyWith(name: 'Tiền phòng'));
+      expect((await read()).name, 'Tiền phòng');
+    });
+
     test('không xoá được ví đang giữ quỹ', () async {
       await newFund('Tiền KTX');
       await expectLater(repo.deleteWallet(techcom), throwsA(anything));

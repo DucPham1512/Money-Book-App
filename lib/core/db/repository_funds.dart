@@ -90,7 +90,19 @@ extension FundQueries on Repository {
 
   Future<int> insertFund(FundsCompanion f) => db.into(db.funds).insert(f);
 
-  Future<bool> updateFund(Fund f) => db.update(db.funds).replace(f);
+  /// Sửa quỹ. Không đổi được ví giữ quỹ: các giao dịch nạp / rút cũ vẫn trỏ
+  /// vào ví cũ, đổi nhãn sang ví khác thì số quỹ không còn khớp với tiền
+  /// thật trong ví nào. Muốn chuyển thì lập quỹ mới ở ví mới, chuyển tiền
+  /// sang rồi xoá quỹ cũ.
+  Future<bool> updateFund(Fund f) async {
+    final current = await (db.select(db.funds)
+          ..where((x) => x.id.equals(f.id)))
+        .getSingleOrNull();
+    if (current != null && current.walletId != f.walletId) {
+      throw ArgumentError('Không đổi được ví giữ quỹ');
+    }
+    return db.update(db.funds).replace(f);
+  }
 
   /// Xoá quỹ. Các giao dịch từng gắn quỹ vẫn còn nguyên, chỉ mất nhãn quỹ —
   /// tiền chưa bao giờ rời ví nên số dư không đổi.

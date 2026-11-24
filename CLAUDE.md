@@ -7,7 +7,7 @@ trong máy, không server, không tài khoản.
 
 ```powershell
 flutter run -d <device>                 # dev, hot reload bằng phím r
-flutter test                            # 364 test, chạy trong ~10 giây
+flutter test                            # 365 test, chạy trong ~10 giây
 flutter analyze
 dart run build_runner build             # BẮT BUỘC sau khi sửa lib/core/db/tables.dart
 flutter build apk --release --target-platform android-arm64
@@ -84,6 +84,9 @@ lib/features/<tính năng>/  mỗi thư mục một miền nghiệp vụ
 - Ví đang giữ quỹ: không xoá, không lưu trữ được (`archiveWallet` ném
   `ArgumentError`). Ví lưu trữ rời tổng tài sản mà quỹ vẫn bị trừ khỏi tiền
   tiêu được, nên quỹ sẽ bị trừ vào ví khác.
+- Quỹ không đổi được ví giữ quỹ (`updateFund` ném `ArgumentError`, màn sửa
+  khoá ô chọn ví): giao dịch nạp / rút cũ vẫn trỏ vào ví cũ. Muốn chuyển thì
+  lập quỹ mới ở ví mới, chuyển tiền sang, rồi xoá quỹ cũ.
 - Người còn dư nợ khác 0: không xoá được, phải tất toán trước.
 - Xoá danh mục: giao dịch giữ nguyên, chỉ thành "Chưa phân loại".
 - Xoá giao dịch là xoá mềm (`deleted_at`) để hoàn tác được.
