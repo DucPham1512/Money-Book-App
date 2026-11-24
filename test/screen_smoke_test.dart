@@ -14,6 +14,10 @@ import 'package:moneybook/features/home/dashboard_screen.dart';
 import 'package:moneybook/features/stats/category_detail_screen.dart';
 import 'package:moneybook/features/stats/stats_screen.dart';
 import 'package:moneybook/features/templates/template_screen.dart';
+import 'package:moneybook/features/budgets/budget_editor_sheet.dart';
+import 'package:moneybook/features/funds/fund_transfer_sheet.dart';
+import 'package:moneybook/features/funds/fund_editor_sheet.dart';
+import 'package:moneybook/features/templates/template_editor_sheet.dart';
 
 /// Lưới an toàn cho việc tách file: mỗi màn hình lớn (và các bảng trượt của
 /// nó) dựng được trên dữ liệu thật và hiện đúng vài nội dung then chốt.

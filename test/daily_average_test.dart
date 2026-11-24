@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneybook/features/home/dashboard_screen.dart';
+import 'package:moneybook/features/home/month_summary_card.dart';
 
 /// "Chi/ngày" ở màn Tổng quan phải chia theo ngày mà app đang coi là hôm nay
 /// (todayProvider), không phải theo đồng hồ lúc thẻ được vẽ lần đầu.

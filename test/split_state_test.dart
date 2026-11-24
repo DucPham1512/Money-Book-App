@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moneybook/features/transactions/split_bill_section.dart';
+import 'package:moneybook/features/transactions/split_state.dart';
 
 /// Phép chia tiền trong màn ghi chi tiêu, chốt lại hành vi hiện tại trước khi
 /// tách [SplitState] ra file riêng.

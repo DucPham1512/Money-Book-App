@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moneybook/core/db/database.dart';
 import 'package:moneybook/core/db/repository.dart';
 import 'package:moneybook/core/domain/tx_kind.dart';
-import 'package:moneybook/features/stats/category_detail_screen.dart';
+import 'package:moneybook/core/domain/daily_totals.dart';
 
 BudgetProgress makeProgress({
   int categoryId = 1,

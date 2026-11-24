@@ -6,14 +6,17 @@ import '../../core/domain/bill.dart';
 import '../../core/domain/tx_kind.dart';
 import '../../core/format/dates.dart';
 import '../../core/format/money.dart';
-import '../../core/icons.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
-import '../categories/category_edit_screen.dart';
-import '../people/person_edit_screen.dart';
 import 'bill_section.dart';
 import 'spend_impact_note.dart';
 import 'split_bill_section.dart';
+import 'split_state.dart';
+import 'widgets/category_picker.dart';
+import 'widgets/fund_picker.dart';
+import 'widgets/kind_selector.dart';
+import 'widgets/person_picker.dart';
+import 'widgets/wallet_dropdown.dart';
 
 /// Mở màn hình ghi giao dịch. Gom một chỗ để mọi nơi trong app gọi giống nhau.
 Future<void> openTxEditor(
@@ -457,7 +460,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
               children: [
-                _KindSelector(selected: _kind, onChanged: _changeKind),
+                KindSelector(selected: _kind, onChanged: _changeKind),
                 const SizedBox(height: 20),
                 // Có hoá đơn thì số tiền là tổng hoá đơn, hiện ở cuối phần
                 // hoá đơn bên dưới, nên không cho gõ tay nữa.
@@ -477,7 +480,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                 ..._buildFieldsForKind(walletList),
                 if (_kind == TxKind.expense && !_isPaidByOther) ...[
                   const SizedBox(height: 12),
-                  _FundPicker(
+                  FundPicker(
                     value: _fundId,
                     onChanged: (v) => setState(() => _fundId = v),
                   ),
@@ -598,7 +601,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
         ),
         if (_paidByOther) ...[
           const SizedBox(height: 4),
-          _PersonPicker(
+          PersonPicker(
             label: 'Ai trả dùm',
             value: _personId,
             onChanged: (v) => setState(() => _personId = v),
@@ -613,7 +616,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
 
     if (_kind == TxKind.transfer) {
       widgets.addAll([
-        _WalletDropdown(
+        WalletDropdown(
           label: 'Từ ví',
           icon: Icons.logout,
           wallets: wallets,
@@ -621,7 +624,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
           onChanged: (v) => setState(() => _walletFromId = v),
         ),
         const SizedBox(height: 12),
-        _WalletDropdown(
+        WalletDropdown(
           label: 'Đến ví',
           icon: Icons.login,
           wallets: wallets,
@@ -632,7 +635,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
       ]);
     } else if (_kind.needsWalletFrom && !_isPaidByOther) {
       // Người khác trả thì không có ví nào bị trừ, nên ẩn ô chọn ví.
-      widgets.add(_WalletDropdown(
+      widgets.add(WalletDropdown(
         label: 'Trừ vào ví',
         icon: Icons.account_balance_wallet_outlined,
         wallets: wallets,
@@ -640,7 +643,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
         onChanged: (v) => setState(() => _walletFromId = v),
       ));
     } else if (_kind.needsWalletTo) {
-      widgets.add(_WalletDropdown(
+      widgets.add(WalletDropdown(
         label: 'Cộng vào ví',
         icon: Icons.account_balance_wallet_outlined,
         wallets: wallets,
@@ -652,7 +655,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     if (_kind.needsCategory) {
       widgets
         ..add(const SizedBox(height: 12))
-        ..add(_CategoryPicker(
+        ..add(CategoryPicker(
           flow: _kind == TxKind.income ? 'income' : 'expense',
           value: _categoryId,
           onChanged: (v) => setState(() => _categoryId = v),
@@ -662,7 +665,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     if (_kind.needsPerson) {
       widgets
         ..add(const SizedBox(height: 12))
-        ..add(_PersonPicker(
+        ..add(PersonPicker(
           value: _personId,
           onChanged: (v) => setState(() => _personId = v),
         ));
@@ -716,345 +719,5 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
         ),
       );
     }
-  }
-}
-
-/// Hàng chip chọn loại giao dịch, tách nhóm thường và nhóm nợ cho dễ nhìn.
-class _KindSelector extends StatelessWidget {
-  const _KindSelector({required this.selected, required this.onChanged});
-
-  final TxKind selected;
-  final ValueChanged<TxKind> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final kind in kQuickTxKinds)
-              _KindChip(
-                kind: kind,
-                selected: selected == kind,
-                onTap: () => onChanged(kind),
-              ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Vay mượn',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final kind in kDebtTxKinds)
-              _KindChip(
-                kind: kind,
-                selected: selected == kind,
-                onTap: () => onChanged(kind),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          selected.hint,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-        ),
-      ],
-    );
-  }
-}
-
-class _KindChip extends StatelessWidget {
-  const _KindChip({
-    required this.kind,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final TxKind kind;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      selected: selected,
-      onSelected: (_) => onTap(),
-      avatar: Icon(
-        kind.icon,
-        size: 18,
-        color: selected ? Theme.of(context).colorScheme.onSecondaryContainer : null,
-      ),
-      label: Text(kind.label),
-      showCheckmark: false,
-    );
-  }
-}
-
-class _WalletDropdown extends StatelessWidget {
-  const _WalletDropdown({
-    required this.label,
-    required this.icon,
-    required this.wallets,
-    required this.value,
-    required this.onChanged,
-    this.excludeId,
-  });
-
-  final String label;
-  final IconData icon;
-  final List<WalletWithBalance> wallets;
-  final int? value;
-  final int? excludeId;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final items =
-        wallets.where((w) => excludeId == null || w.id != excludeId).toList();
-    // Nếu ví đang chọn vừa bị loại khỏi danh sách (do trùng với ví bên kia),
-    // phải bỏ chọn, nếu không DropdownButton sẽ ném lỗi.
-    final safeValue = items.any((w) => w.id == value) ? value : null;
-
-    return DropdownButtonFormField<int>(
-      initialValue: safeValue,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
-      items: [
-        for (final w in items)
-          DropdownMenuItem(
-            value: w.id,
-            child: Row(
-              children: [
-                Icon(
-                  iconFor(w.wallet.iconKey, fallback: Icons.wallet),
-                  size: 18,
-                  color: w.wallet.colorValue == null
-                      ? null
-                      : Color(w.wallet.colorValue!),
-                ),
-                const SizedBox(width: 10),
-                Expanded(child: Text(w.name, overflow: TextOverflow.ellipsis)),
-                const SizedBox(width: 8),
-                Text(
-                  formatVndShort(w.balance),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-      onChanged: onChanged,
-    );
-  }
-}
-
-/// Chọn danh mục bằng lưới chip, kèm nút thêm mới ngay tại chỗ.
-class _CategoryPicker extends ConsumerWidget {
-  const _CategoryPicker({
-    required this.flow,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String flow;
-  final int? value;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final categories = ref.watch(
-      flow == 'income' ? incomeCategoriesProvider : expenseCategoriesProvider,
-    );
-
-    return categories.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (e, _) => Text('Lỗi: $e'),
-      data: (list) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Danh mục',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final c in list)
-                ChoiceChip(
-                  selected: value == c.id,
-                  onSelected: (_) => onChanged(c.id),
-                  showCheckmark: false,
-                  avatar: Icon(
-                    iconFor(c.iconKey, fallback: Icons.label_outline),
-                    size: 18,
-                    color: c.colorValue == null ? null : Color(c.colorValue!),
-                  ),
-                  label: Text(c.name),
-                ),
-              ActionChip(
-                avatar: const Icon(Icons.add, size: 18),
-                label: const Text('Thêm'),
-                onPressed: () async {
-                  final id = await Navigator.push<int>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CategoryEditScreen(flow: flow),
-                    ),
-                  );
-                  if (id != null) onChanged(id);
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Chọn quỹ để lấy tiền ra chi.
-///
-/// Chỉ hiện khi có quỹ. Chọn quỹ nào thì khoản chi vừa trừ ví vừa trừ quỹ đó —
-/// đúng như thực tế: tiền quỹ vốn đã nằm trong ví, giờ mới thực sự tiêu.
-class _FundPicker extends ConsumerWidget {
-  const _FundPicker({required this.value, required this.onChanged});
-
-  final int? value;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final funds = ref.watch(fundsProvider).valueOrNull ?? const <FundProgress>[];
-    if (funds.isEmpty) return const SizedBox.shrink();
-
-    final scheme = Theme.of(context).colorScheme;
-    final selected = funds.where((f) => f.id == value).firstOrNull;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Lấy từ quỹ', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ChoiceChip(
-              selected: value == null,
-              onSelected: (_) => onChanged(null),
-              showCheckmark: false,
-              label: const Text('Không'),
-            ),
-            for (final f in funds)
-              ChoiceChip(
-                selected: value == f.id,
-                onSelected: (_) => onChanged(f.id),
-                showCheckmark: false,
-                avatar: Icon(
-                  iconFor(f.fund.iconKey, fallback: Icons.savings),
-                  size: 18,
-                  color: f.fund.colorValue == null
-                      ? null
-                      : Color(f.fund.colorValue!),
-                ),
-                label: Text('${f.name} · ${formatVndShort(f.saved)}'),
-              ),
-          ],
-        ),
-        if (selected != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Trừ vào quỹ ${selected.name}, đang có '
-            '${formatVnd(selected.saved)} ở ${selected.walletName}.',
-            style: TextStyle(fontSize: 12, color: scheme.outline),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// Chọn người từ danh bạ. Thêm một lần, những lần sau chỉ việc chọn.
-class _PersonPicker extends ConsumerWidget {
-  const _PersonPicker({
-    required this.value,
-    required this.onChanged,
-    this.label = 'Với ai',
-  });
-
-  final String label;
-  final int? value;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final people = ref.watch(peopleProvider);
-
-    return people.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (e, _) => Text('Lỗi: $e'),
-      data: (list) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          if (list.isEmpty)
-            Text(
-              'Danh bạ đang trống. Thêm một người để bắt đầu ghi nợ.',
-              style: TextStyle(color: Theme.of(context).colorScheme.outline),
-            ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final p in list)
-                ChoiceChip(
-                  selected: value == p.id,
-                  onSelected: (_) => onChanged(p.id),
-                  showCheckmark: false,
-                  avatar: InitialAvatar(
-                    name: p.name,
-                    size: 24,
-                    color:
-                        p.avatarColor == null ? null : Color(p.avatarColor!),
-                  ),
-                  label: Text(p.name),
-                ),
-              ActionChip(
-                avatar: const Icon(Icons.person_add_alt, size: 18),
-                label: const Text('Thêm người'),
-                onPressed: () async {
-                  final id = await Navigator.push<int>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PersonEditScreen(),
-                    ),
-                  );
-                  if (id != null) onChanged(id);
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
