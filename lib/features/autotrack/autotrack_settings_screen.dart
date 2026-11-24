@@ -198,6 +198,9 @@ class _ListenerStatus extends ConsumerWidget {
                   style: TextStyle(color: scheme.onErrorContainer),
                 ),
                 trailing: FilledButton(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(64, 40),
+                  ),
                   onPressed: () => ref
                       .read(autoTrackPlatformProvider)
                       .openListenerSettings(),
