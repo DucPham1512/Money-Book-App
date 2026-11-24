@@ -90,7 +90,12 @@ final allTransactionsProvider = StreamProvider<List<TxView>>((ref) {
 });
 
 /// Tháng đang xem ở màn Thống kê, dạng yyyymm.
-final selectedMonthProvider = StateProvider<int>((ref) => currentMonthKey());
+///
+/// Đọc (không theo dõi) [todayProvider]: đây là lựa chọn của người dùng, qua
+/// nửa đêm sang tháng mới cũng không được tự nhảy khỏi tháng đang xem.
+final selectedMonthProvider = StateProvider<int>(
+  (ref) => monthKeyOf(ref.read(todayProvider)),
+);
 
 final monthTotalsProvider =
     StreamProvider.family<MonthTotals, int>((ref, monthKey) {

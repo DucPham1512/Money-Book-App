@@ -79,7 +79,7 @@ class _MonthSwitcher extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final monthKey = ref.watch(selectedMonthProvider);
-    final isCurrent = monthKey == currentMonthKey();
+    final isCurrent = monthKey == monthKeyOf(ref.watch(todayProvider));
 
     return Row(
       children: [

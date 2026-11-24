@@ -83,4 +83,49 @@ void main() {
     await expectLater(repo.deleteWallet(wallet), throwsA(anything));
     expect(await exists(), isTrue);
   });
+
+  test('ví đang giữ quỹ thì không lưu trữ được, nếu không quỹ bị trừ hai lần',
+      () async {
+    final other = await repo.insertWallet(
+      WalletsCompanion.insert(name: 'Ví khác', createdAt: 0, updatedAt: 0),
+    );
+    await repo.addTransaction(
+      kind: TxKind.income,
+      amount: 5000000,
+      occurredAt: DateTime(2026, 9, 1),
+      walletToId: wallet,
+    );
+    await repo.addTransaction(
+      kind: TxKind.income,
+      amount: 3000000,
+      occurredAt: DateTime(2026, 9, 1),
+      walletToId: other,
+    );
+    final fund = await repo.insertFund(
+      FundsCompanion.insert(
+        name: 'Tết',
+        walletId: wallet,
+        createdAt: 0,
+        updatedAt: 0,
+      ),
+    );
+    await repo.depositToFund(
+      fundId: fund,
+      walletFromId: wallet,
+      walletToId: wallet,
+      amount: 2000000,
+      occurredAt: DateTime(2026, 9, 2),
+    );
+    expect(await repo.watchSpendableAssets().first, 6000000);
+
+    await expectLater(
+      repo.archiveWallet(wallet, archived: true),
+      throwsArgumentError,
+    );
+    expect(await repo.watchSpendableAssets().first, 6000000);
+
+    // Bỏ lưu trữ thì không bao giờ bị chặn.
+    await repo.archiveWallet(other, archived: true);
+    await repo.archiveWallet(other, archived: false);
+  });
 }

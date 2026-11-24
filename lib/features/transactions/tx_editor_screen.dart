@@ -86,6 +86,10 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
   /// Hoá đơn chi tiết. Bật lên thì số tiền là tổng hoá đơn.
   final _bill = BillState();
 
+  /// Đang sửa một khoản có hoá đơn mà hoá đơn chưa đọc xong. Lúc này lưu thì
+  /// phải giữ nguyên hoá đơn cũ, không được hiểu "chưa bật" là "bỏ hoá đơn".
+  bool _billLoading = false;
+
   /// Người khác trả dùm: không chọn ví, chọn người mình nợ.
   bool _paidByOther = false;
 
@@ -128,7 +132,10 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
       _paidByOther = editing.isPaidByOther;
       _occurredAt =
           DateTime.fromMillisecondsSinceEpoch(editing.tx.occurredAt);
-      if (editing.hasBill) _loadBill(editing.tx.id);
+      if (editing.hasBill) {
+        _billLoading = true;
+        _loadBill(editing.tx.id);
+      }
     } else if (widget.fromTemplate != null) {
       final t = widget.fromTemplate!;
       _kind = TxKind.expense;
@@ -148,7 +155,10 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
   Future<void> _loadBill(int txId) async {
     final items = await ref.read(repositoryProvider).watchBill(txId).first;
     if (!mounted) return;
-    setState(() => _bill.load(items));
+    setState(() {
+      _bill.load(items);
+      _billLoading = false;
+    });
   }
 
   /// Có lưu được các trường đang nhập thành mẫu chi tiêu không.
@@ -345,7 +355,8 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
         personId: personId,
         fundId: fundId,
         note: note.isEmpty ? null : note,
-        bill: bill,
+        // null là giữ nguyên hoá đơn đang có trong DB.
+        bill: _billLoading ? null : bill,
       );
     } else {
       await repo.addTransaction(

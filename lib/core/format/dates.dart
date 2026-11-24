@@ -7,9 +7,6 @@ int dayKeyOf(DateTime local) =>
 /// yyyymm theo giờ địa phương. Tháng 9/2026 -> 202609.
 int monthKeyOf(DateTime local) => local.year * 100 + local.month;
 
-/// Tháng hiện tại.
-int currentMonthKey() => monthKeyOf(DateTime.now());
-
 /// Tháng liền trước. 202601 -> 202512.
 int previousMonthKey(int monthKey) {
   final year = monthKey ~/ 100;

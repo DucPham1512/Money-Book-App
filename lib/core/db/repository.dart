@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/bill.dart';
 import '../domain/fund_delta.dart';
+import '../domain/tx_rules.dart';
 import '../domain/tx_kind.dart';
 import '../format/dates.dart';
 import 'database.dart';
@@ -242,17 +243,20 @@ class Repository {
         );
   }
 
-  Stream<int> watchTotalAssets() {
-    const sql = '''
-      SELECT COALESCE((SELECT SUM(initial_balance) FROM wallets WHERE is_archived = 0), 0)
+  /// Tổng số dư mọi ví chưa lưu trữ, dạng biểu thức SQL để ghép vào truy vấn
+  /// khác (xem [watchSpendableAssets]).
+  static const _totalAssetsExpr = '''(
+        COALESCE((SELECT SUM(initial_balance) FROM wallets WHERE is_archived = 0), 0)
            + COALESCE((SELECT SUM(t.amount) FROM transactions t
                        JOIN wallets w ON w.id = t.wallet_to_id
                        WHERE t.deleted_at IS NULL AND w.is_archived = 0), 0)
            - COALESCE((SELECT SUM(t.amount) FROM transactions t
                        JOIN wallets w ON w.id = t.wallet_from_id
                        WHERE t.deleted_at IS NULL AND w.is_archived = 0), 0)
-           AS total
-    ''';
+      )''';
+
+  Stream<int> watchTotalAssets() {
+    const sql = 'SELECT $_totalAssetsExpr AS total';
     return db
         .customSelect(sql, readsFrom: {db.wallets, db.transactions})
         .watchSingle()
@@ -295,10 +299,18 @@ class Repository {
 
   Future<bool> updateWallet(Wallet w) => db.update(db.wallets).replace(w);
 
-  Future<void> archiveWallet(int id, {required bool archived}) =>
-      (db.update(db.wallets)..where((w) => w.id.equals(id))).write(
-        WalletsCompanion(isArchived: Value(archived), updatedAt: Value(_now())),
-      );
+  /// Ví đang giữ quỹ thì không lưu trữ được: ví lưu trữ rời khỏi tổng tài
+  /// sản, còn quỹ vẫn bị trừ khỏi tiền tiêu được, thành ra tiền quỹ bị trừ
+  /// vào những ví chưa bao giờ giữ nó. Màn hình hỏi [countFundsOfWallet]
+  /// trước để báo cho người dùng.
+  Future<void> archiveWallet(int id, {required bool archived}) async {
+    if (archived && await countFundsOfWallet(id) > 0) {
+      throw ArgumentError('Ví đang giữ quỹ, không lưu trữ được');
+    }
+    await (db.update(db.wallets)..where((w) => w.id.equals(id))).write(
+      WalletsCompanion(isArchived: Value(archived), updatedAt: Value(_now())),
+    );
+  }
 
   /// Chỉ nên gọi khi ví không còn giao dịch nào — ví đã dùng thì lưu trữ,
   /// nếu không lịch sử sẽ thủng một lỗ.
@@ -377,14 +389,15 @@ class Repository {
   ///
   /// Số này bị trừ khỏi "tiền tiêu được" nhưng vẫn nằm trong tổng tài sản đầy
   /// đủ — tiền vẫn là của mình, chỉ là đã có chỗ đến.
-  Stream<int> watchTotalInFunds() {
-    const sql =
-        '''
-      SELECT COALESCE(SUM(saved), 0) AS total FROM (
+  static const _totalInFundsExpr = '''(
+      SELECT COALESCE(SUM(saved), 0) FROM (
         SELECT $_fundSavedExpr AS saved
         FROM funds f WHERE f.is_archived = 0
       )
-    ''';
+    )''';
+
+  Stream<int> watchTotalInFunds() {
+    const sql = 'SELECT $_totalInFundsExpr AS total';
     return db
         .customSelect(sql, readsFrom: {db.funds, db.transactions})
         .watchSingle()
@@ -395,14 +408,16 @@ class Repository {
   ///
   /// Cộng theo người chứ không cộng thẳng mọi debt_delta âm: người khác nợ
   /// mình không được bù vào phần mình nợ người khác.
-  Stream<int> watchTotalOwed() {
-    const sql = '''
-      SELECT COALESCE(SUM(-net), 0) AS total FROM (
+  static const _totalOwedExpr = '''(
+      SELECT COALESCE(SUM(-net), 0) FROM (
         SELECT SUM(debt_delta) AS net FROM transactions
         WHERE deleted_at IS NULL AND person_id IS NOT NULL
         GROUP BY person_id
       ) WHERE net < 0
-    ''';
+    )''';
+
+  Stream<int> watchTotalOwed() {
+    const sql = 'SELECT $_totalOwedExpr AS total';
     return db
         .customSelect(sql, readsFrom: {db.transactions})
         .watchSingle()
@@ -415,12 +430,20 @@ class Repository {
   /// Tiền mượn nằm trong ví nhưng không phải của mình, nên vay hay trả nợ đều
   /// không làm con số này nhảy. Người khác nợ mình thì không cộng vào: tiền
   /// đó chưa về tay. Âm nghĩa là có trong tay không đủ trả nợ.
+  ///
+  /// Một truy vấn duy nhất theo dõi cả ví, giao dịch lẫn quỹ: đổi riêng bảng
+  /// quỹ (ví dụ quỹ lưu trữ) cũng phải phát lại con số mới.
   Stream<int> watchSpendableAssets() {
-    return watchTotalAssets().asyncMap((total) async {
-      final funds = await watchTotalInFunds().first;
-      final owed = await watchTotalOwed().first;
-      return total - funds - owed;
-    });
+    const sql =
+        'SELECT $_totalAssetsExpr - $_totalInFundsExpr - $_totalOwedExpr '
+        'AS total';
+    return db
+        .customSelect(
+          sql,
+          readsFrom: {db.wallets, db.transactions, db.funds},
+        )
+        .watchSingle()
+        .map((row) => row.read<int>('total'));
   }
 
   /// Danh sách quỹ kèm số đã để dành và ví đang giữ tiền.
@@ -473,11 +496,6 @@ class Repository {
   Future<int> insertFund(FundsCompanion f) => db.into(db.funds).insert(f);
 
   Future<bool> updateFund(Fund f) => db.update(db.funds).replace(f);
-
-  Future<void> archiveFund(int id, {required bool archived}) =>
-      (db.update(db.funds)..where((f) => f.id.equals(id))).write(
-        FundsCompanion(isArchived: Value(archived), updatedAt: Value(_now())),
-      );
 
   /// Xoá quỹ. Các giao dịch từng gắn quỹ vẫn còn nguyên, chỉ mất nhãn quỹ —
   /// tiền chưa bao giờ rời ví nên số dư không đổi.
@@ -1033,8 +1051,8 @@ class Repository {
     List<BillLine> bill = const [],
   }) async {
     assert(amount > 0, 'amount phải dương, dấu suy ra từ kind');
-    _checkBill(amount, bill);
-    _checkPaidByOther(kind, personId, walletFromId, walletToId, fundId);
+    checkBill(amount, bill);
+    checkPaidByOther(kind, personId, walletFromId, walletToId, fundId);
     final now = _now();
     final fundDelta = await _fundDeltaFor(
       fundId: fundId,
@@ -1073,36 +1091,6 @@ class Repository {
       await _writeBill(id, bill);
       return id;
     });
-  }
-
-  /// Người khác trả dùm thì tiền không đi qua ví hay quỹ nào của mình. Cho
-  /// phép cả hai cùng lúc là vừa trừ ví vừa ghi nợ — đếm một khoản chi hai lần.
-  void _checkPaidByOther(
-    TxKind kind,
-    int? personId,
-    int? walletFromId,
-    int? walletToId,
-    int? fundId,
-  ) {
-    if (!kind.canBePaidByOther || personId == null) return;
-    if (walletFromId != null || walletToId != null || fundId != null) {
-      throw ArgumentError(
-        'Khoản chi người khác trả dùm không được trừ vào ví hay quỹ',
-      );
-    }
-  }
-
-  /// Có hoá đơn thì số tiền phải đúng bằng tổng hoá đơn, không thì sổ sách
-  /// và hoá đơn mỗi bên nói một số.
-  void _checkBill(int amount, List<BillLine> bill) {
-    if (bill.isEmpty) return;
-    final error = validateBill(bill);
-    if (error != null) throw ArgumentError(error);
-    if (billTotal(bill) != amount) {
-      throw ArgumentError(
-        'Số tiền $amount không khớp tổng hoá đơn ${billTotal(bill)}',
-      );
-    }
   }
 
   /// Ghi đè toàn bộ hoá đơn của một giao dịch. Danh sách rỗng là bỏ hoá đơn.
@@ -1151,8 +1139,8 @@ class Repository {
     List<BillLine>? bill,
   }) async {
     assert(amount > 0);
-    if (bill != null) _checkBill(amount, bill);
-    _checkPaidByOther(kind, personId, walletFromId, walletToId, fundId);
+    if (bill != null) checkBill(amount, bill);
+    checkPaidByOther(kind, personId, walletFromId, walletToId, fundId);
     // Nạp / rút ngay trong ví giữ quỹ không suy được chiều từ chân ví, nên giữ
     // chiều cũ của chính giao dịch này.
     final old = await (db.select(db.transactions)

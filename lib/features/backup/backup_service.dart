@@ -5,10 +5,13 @@ import 'package:csv/csv.dart';
 import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/db/database.dart';
+import '../../core/domain/bill.dart';
 import '../../core/domain/fund_delta.dart';
 import '../../core/domain/tx_kind.dart';
+import '../../core/domain/tx_rules.dart';
 import '../../core/format/dates.dart';
 
 /// Phiên bản định dạng file sao lưu.
@@ -219,6 +222,10 @@ class BackupService {
     final billRows = ((data['billItems'] as List?) ?? const [])
         .cast<Map<String, dynamic>>();
 
+    // Kiểm tra trước khi đụng vào DB: chế độ ghi đè xoá sạch dữ liệu cũ, nên
+    // file hỏng phải bị chặn từ đầu chứ không phải giữa chừng.
+    _validateTransactions(txRows, billRows);
+
     await db.transaction(() async {
       if (mode == ImportMode.replace) {
         // Xoá theo thứ tự ngược với phụ thuộc khoá ngoại.
@@ -315,6 +322,9 @@ class BackupService {
       }
 
       final txIds = <int, int>{};
+      // Nhóm cũng ánh xạ sang mã mới như id: gộp cùng một file hai lần thì
+      // hai cặp trả dùm không được dính vào nhau, xoá một cặp là mất cả hai.
+      final groupIds = <String, String>{};
       for (final row in txRows) {
         final kind = TxKindX.fromId(row['kind'] as String);
         final amount = row['amount'] as int;
@@ -323,6 +333,14 @@ class BackupService {
         final walletFromId = walletIds[row['walletFromId']];
         final walletToId = walletIds[row['walletToId']];
         final fundId = fundIds[row['fundId']];
+        var personId = personIds[row['personId']];
+        // Trước khi có "người khác trả dùm", người gắn trên khoản chi không
+        // mang nghĩa nợ. Khoản chi đã trừ ví / quỹ mà vẫn có người là dữ liệu
+        // kiểu cũ: bỏ người đi, nếu không sẽ vừa trừ ví vừa ghi nợ.
+        if (kind.canBePaidByOther &&
+            (walletFromId != null || walletToId != null || fundId != null)) {
+          personId = null;
+        }
         // Tính lại từ chân ví như lúc ghi. File chỉ được hỏi đúng một điều mà
         // chân ví không trả lời được: nạp / rút ngay trong ví giữ quỹ là chiều
         // nào. File cũ không có trường này thì cũng không có trường hợp đó.
@@ -351,18 +369,22 @@ class BackupService {
                 walletFromId: Value(walletFromId),
                 walletToId: Value(walletToId),
                 categoryId: Value(categoryIds[row['categoryId']]),
-                personId: Value(personIds[row['personId']]),
+                personId: Value(personId),
                 fundId: Value(fundId),
                 fundDelta: Value(fundDelta),
                 // Tính lại từ kind, không tin số trong file.
                 debtDelta: Value(
-                  kind.debtDelta(
-                    amount,
-                    hasPerson: personIds[row['personId']] != null,
-                  ),
+                  kind.debtDelta(amount, hasPerson: personId != null),
                 ),
                 note: Value(row['note'] as String?),
-                groupId: Value(row['groupId'] as String?),
+                groupId: Value(
+                  row['groupId'] == null
+                      ? null
+                      : groupIds.putIfAbsent(
+                          row['groupId'] as String,
+                          () => const Uuid().v4(),
+                        ),
+                ),
                 isWriteoff: Value(row['isWriteoff'] as bool? ?? false),
                 createdAt: row['createdAt'] as int? ?? 0,
                 updatedAt: row['updatedAt'] as int? ?? 0,
@@ -437,6 +459,46 @@ class BackupService {
         templates: templateRows.length,
       ),
     );
+  }
+
+  /// Chặn những dòng giao dịch mà đường ghi thường ([Repository.addTransaction])
+  /// không bao giờ tạo ra: số tiền không dương, loại lạ, hoá đơn lệch tổng.
+  void _validateTransactions(
+    List<Map<String, dynamic>> txRows,
+    List<Map<String, dynamic>> billRows,
+  ) {
+    final billsByTx = <Object?, List<BillLine>>{};
+    for (final row in billRows) {
+      final unitPrice = row['unitPrice'] as int? ?? 0;
+      // Dòng giá không dương vốn bị bỏ qua lúc nhập, nên cũng không đem so.
+      if (unitPrice <= 0) continue;
+      billsByTx.putIfAbsent(row['transactionId'], () => []).add(
+        BillLine(
+          name: row['name'] as String? ?? '',
+          quantity: row['quantity'] as int? ?? 1,
+          unitPrice: unitPrice,
+          isDiscount: row['isDiscount'] as bool? ?? false,
+        ),
+      );
+    }
+
+    for (var i = 0; i < txRows.length; i++) {
+      final row = txRows[i];
+      final where = 'Giao dịch thứ ${i + 1} trong file';
+      final kindId = row['kind'];
+      if (!TxKind.values.any((k) => k.id == kindId)) {
+        throw BackupException('$where có loại "$kindId" không hợp lệ.');
+      }
+      final amount = row['amount'];
+      if (amount is! int || amount <= 0) {
+        throw BackupException('$where có số tiền không hợp lệ ($amount).');
+      }
+      try {
+        checkBill(amount, billsByTx[row['id']] ?? const []);
+      } on ArgumentError catch (e) {
+        throw BackupException('$where: ${e.message}');
+      }
+    }
   }
 
   Map<String, dynamic> _decodeAndValidate(String jsonString) {

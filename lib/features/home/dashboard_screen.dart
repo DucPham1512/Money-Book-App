@@ -212,6 +212,9 @@ class _MonthSummaryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final totals = ref.watch(currentMonthTotalsProvider);
+    // Xem todayProvider chứ không gọi DateTime.now(): qua nửa đêm mà không có
+    // giao dịch mới thì thẻ này vẫn phải chia cho đúng số ngày.
+    final today = ref.watch(todayProvider);
 
     return Card(
       child: Padding(
@@ -220,7 +223,7 @@ class _MonthSummaryCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              monthKeyLabel(currentMonthKey()),
+              monthKeyLabel(monthKeyOf(today)),
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 14),
@@ -249,7 +252,7 @@ class _MonthSummaryCard extends ConsumerWidget {
                     // Chi mỗi ngày nói lên nhịp độ, thứ thực sự dùng được.
                     child: _MiniStat(
                       label: 'Chi/ngày',
-                      value: _dailyAverage(t.expense),
+                      value: dailyAverageSpend(t.expense, today: today),
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
@@ -263,9 +266,10 @@ class _MonthSummaryCard extends ConsumerWidget {
   }
 }
 
-/// Chi trung bình mỗi ngày tính trên số ngày đã trôi qua của tháng.
-int _dailyAverage(int monthExpense) {
-  final elapsed = daysElapsedIn(currentMonthKey());
+/// Chi trung bình mỗi ngày tính trên số ngày đã trôi qua của tháng chứa
+/// [today].
+int dailyAverageSpend(int monthExpense, {required DateTime today}) {
+  final elapsed = daysElapsedIn(monthKeyOf(today), now: today);
   if (elapsed <= 0) return 0;
   return monthExpense ~/ elapsed;
 }

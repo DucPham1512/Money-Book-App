@@ -103,7 +103,7 @@ class _MonthHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isCurrent = monthKey == currentMonthKey();
+    final isCurrent = monthKey == monthKeyOf(ref.watch(todayProvider));
 
     return Row(
       children: [

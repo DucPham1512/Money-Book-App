@@ -359,13 +359,34 @@ void main() {
       await deposit(fund, 2000000);
       expect(await repo.watchTotalInFunds().first, 2000000);
 
-      await repo.archiveFund(fund, archived: true);
+      // Không còn nút lưu trữ quỹ, nhưng quỹ lưu trữ vẫn có thể đến từ bản
+      // sao lưu cũ.
+      await (db.update(db.funds)..where((f) => f.id.equals(fund)))
+          .write(const FundsCompanion(isArchived: Value(true)));
 
       expect(await repo.watchTotalInFunds().first, 0);
       expect(await repo.watchSpendableAssets().first, 5000000,
           reason: 'tiền quay lại phần tiêu được');
       expect(await repo.watchFunds().first, isEmpty);
       expect(await repo.watchFunds(includeArchived: true).first, hasLength(1));
+    });
+
+    test('tiền tiêu được phát lại khi chỉ bảng quỹ đổi', () async {
+      final fund = await newFund('Tiền KTX');
+      await deposit(fund, 2000000);
+
+      final values = <int>[];
+      final sub = repo.watchSpendableAssets().listen(values.add);
+      await pumpEventQueue();
+      expect(values.last, 3000000);
+
+      await (db.update(db.funds)..where((f) => f.id.equals(fund)))
+          .write(const FundsCompanion(isArchived: Value(true)));
+      await pumpEventQueue();
+      await sub.cancel();
+
+      expect(values.last, 5000000,
+          reason: 'quỹ lưu trữ không còn giữ tiền, stream phải tính lại');
     });
 
     test('xoá quỹ thì giao dịch còn nguyên, chỉ mất nhãn quỹ', () async {

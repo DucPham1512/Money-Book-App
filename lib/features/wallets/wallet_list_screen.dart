@@ -162,6 +162,19 @@ class _WalletTile extends ConsumerWidget {
     );
   }
 
+  /// Ví giữ quỹ thì không xoá, không lưu trữ được: quỹ sẽ mất chỗ neo, hoặc
+  /// bị trừ vào những ví chưa từng giữ nó. Trả về true nếu đã báo chặn.
+  Future<bool> _heldFundsBlock(BuildContext context, Repository repo) async {
+    final funds = await repo.countFundsOfWallet(item.id);
+    if (funds == 0 || !context.mounted) return funds > 0;
+    showSnack(
+      context,
+      '"${item.name}" đang giữ $funds quỹ. Chuyển quỹ sang ví khác '
+      'hoặc xoá quỹ trước.',
+    );
+    return true;
+  }
+
   Future<void> _onMenu(
     BuildContext context,
     WidgetRef ref,
@@ -182,6 +195,10 @@ class _WalletTile extends ConsumerWidget {
         await showAdjustBalanceSheet(context, item);
 
       case 'archive':
+        if (!item.wallet.isArchived && await _heldFundsBlock(context, repo)) {
+          return;
+        }
+        if (!context.mounted) return;
         await repo.archiveWallet(item.id, archived: !item.wallet.isArchived);
         if (!context.mounted) return;
         showSnack(
@@ -209,6 +226,8 @@ class _WalletTile extends ConsumerWidget {
             destructive: false,
           );
           if (archive && context.mounted) {
+            if (await _heldFundsBlock(context, repo)) return;
+            if (!context.mounted) return;
             await repo.archiveWallet(item.id, archived: true);
             if (context.mounted) {
               showSnack(context, 'Đã lưu trữ "${item.name}"');
@@ -218,16 +237,8 @@ class _WalletTile extends ConsumerWidget {
         }
 
         // Quỹ neo vào ví nào thì ví đó giữ tiền quỹ; xoá ví là quỹ mất chỗ.
-        final funds = await repo.countFundsOfWallet(item.id);
+        if (await _heldFundsBlock(context, repo)) return;
         if (!context.mounted) return;
-        if (funds > 0) {
-          showSnack(
-            context,
-            '"${item.name}" đang giữ $funds quỹ. Chuyển quỹ sang ví khác '
-            'hoặc xoá quỹ trước.',
-          );
-          return;
-        }
 
         final ok = await confirmDialog(
           context,
