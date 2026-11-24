@@ -4,7 +4,7 @@
 ///
 /// Tăng lên mỗi khi cấu trúc file đổi, để bản app cũ biết mà từ chối file mới
 /// thay vì đọc bừa rồi hỏng dữ liệu.
-const kBackupFormatVersion = 5;
+const kBackupFormatVersion = 6;
 
 class BackupStats {
   const BackupStats({

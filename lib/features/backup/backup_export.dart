@@ -13,6 +13,15 @@ extension BackupExport on BackupService {
     final funds = await db.select(db.funds).get();
     final templates = await db.select(db.expenseTemplates).get();
     final billItems = await db.select(db.billItems).get();
+    // Tự động ghi (v6). KHÔNG xuất notification_events: thông báo thô chứa số
+    // tài khoản và số dư, lại chỉ dùng để gỡ lỗi.
+    final trackedApps = await (db.select(
+      db.trackedApps,
+    )..where((t) => t.parserId.isNotNull())).get();
+    final accountWallets = await db.select(db.accountWallets).get();
+    final rules = await db.select(db.receiverRules).get();
+    final keywords = await db.select(db.categoryKeywords).get();
+
 
     final data = <String, dynamic>{
       'formatVersion': kBackupFormatVersion,
@@ -27,6 +36,48 @@ extension BackupExport on BackupService {
       'funds': funds.map(_fundToMap).toList(),
       'templates': templates.map(_templateToMap).toList(),
       'billItems': billItems.map(_billItemToMap).toList(),
+      'trackedApps': [
+        for (final a in trackedApps)
+          {
+            'packageName': a.packageName,
+            'parserId': a.parserId,
+            'label': a.label,
+            'enabled': a.enabled,
+            'defaultWalletId': a.defaultWalletId,
+          },
+      ],
+      'accountWallets': [
+        for (final a in accountWallets)
+          {
+            'packageName': a.packageName,
+            'accountSuffix': a.accountSuffix,
+            'walletId': a.walletId,
+          },
+      ],
+      'receiverRules': [
+        for (final r in rules)
+          {
+            'matchType': r.matchType,
+            'matchKey': r.matchKey,
+            'flow': r.flow.name,
+            'displayName': r.displayName,
+            'categoryId': r.categoryId,
+            'hitCount': r.hitCount,
+            'lastUsedAt': r.lastUsedAt,
+            'createdAt': r.createdAt,
+            'updatedAt': r.updatedAt,
+          },
+      ],
+      'categoryKeywords': [
+        for (final k in keywords)
+          {
+            'keyword': k.keyword,
+            'categoryId': k.categoryId,
+            'isBuiltIn': k.isBuiltIn,
+            'enabled': k.enabled,
+            'createdAt': k.createdAt,
+          },
+      ],
     };
 
     return const JsonEncoder.withIndent('  ').convert(data);
@@ -103,6 +154,7 @@ extension BackupExport on BackupService {
     'createdAt': t.createdAt,
     'updatedAt': t.updatedAt,
     'deletedAt': t.deletedAt,
+    'needsReview': t.needsReview,
   };
 
   Map<String, dynamic> _fundToMap(Fund f) => {

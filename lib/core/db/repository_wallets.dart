@@ -44,14 +44,23 @@ extension WalletQueries on Repository {
         .map((row) => row.read<int>('total'));
   }
 
-  Future<int> balanceOf(int walletId) async {
+  /// Số dư hiện tại, hoặc số dư tính tới hết thời điểm [asOf] (để đối chiếu
+  /// với số dư ngân hàng báo trong một thông báo cũ). Vẫn đúng một công thức.
+  Future<int> balanceOf(int walletId, {DateTime? asOf}) async {
+    final expr = asOf == null
+        ? Repository._walletBalanceExpr
+        : Repository._walletBalanceSql(until: ' AND t.occurred_at <= ?');
     final row = await db
         .customSelect(
           '''
-      SELECT ${Repository._walletBalanceExpr} AS balance
+      SELECT $expr AS balance
       FROM wallets w WHERE w.id = ?
       ''',
-          variables: [Variable.withInt(walletId)],
+          variables: [
+            if (asOf != null) Variable.withInt(asOf.millisecondsSinceEpoch),
+            if (asOf != null) Variable.withInt(asOf.millisecondsSinceEpoch),
+            Variable.withInt(walletId),
+          ],
           readsFrom: {db.wallets, db.transactions},
         )
         .getSingleOrNull();

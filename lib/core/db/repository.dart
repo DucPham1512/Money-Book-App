@@ -40,12 +40,17 @@ class Repository {
   ///
   /// Đây là chỗ DUY NHẤT viết công thức này (xem CLAUDE.md); truy vấn nào cần
   /// số dư một ví thì ghép biểu thức này vào với bí danh `w`.
-  static const _walletBalanceExpr = '''(
+  static final _walletBalanceExpr = _walletBalanceSql();
+
+  /// [_walletBalanceExpr], có thể giới hạn thêm giao dịch bằng [until] (một
+  /// điều kiện SQL trên `t`, ví dụ `AND t.occurred_at <= ?`, xuất hiện hai
+  /// lần nên phải truyền tham số hai lần). Vẫn là cùng một công thức.
+  static String _walletBalanceSql({String until = ''}) => '''(
         w.initial_balance
         + COALESCE((SELECT SUM(t.amount) FROM transactions t
-                    WHERE t.wallet_to_id = w.id AND t.deleted_at IS NULL), 0)
+                    WHERE t.wallet_to_id = w.id AND t.deleted_at IS NULL$until), 0)
         - COALESCE((SELECT SUM(t.amount) FROM transactions t
-                    WHERE t.wallet_from_id = w.id AND t.deleted_at IS NULL), 0)
+                    WHERE t.wallet_from_id = w.id AND t.deleted_at IS NULL$until), 0)
       )''';
 
   /// Tổng số dư mọi ví chưa lưu trữ, dạng biểu thức SQL để ghép vào truy vấn

@@ -43,6 +43,14 @@ extension BackupImport on BackupService {
         .cast<Map<String, dynamic>>();
     final billRows = ((data['billItems'] as List?) ?? const [])
         .cast<Map<String, dynamic>>();
+    List<Map<String, dynamic>> listOf(String key) =>
+        ((data[key] as List?) ?? const []).cast<Map<String, dynamic>>();
+    final trackedRows = listOf('trackedApps');
+    final accountWalletRows = listOf('accountWallets');
+    final ruleRows = listOf('receiverRules');
+    final keywordRows = listOf('categoryKeywords');
+    // File cũ (trước v6) không có phần này.
+    final hasKeywords = data.containsKey('categoryKeywords');
 
     // Kiểm tra trước khi đụng vào DB: chế độ ghi đè xoá sạch dữ liệu cũ, nên
     // file hỏng phải bị chặn từ đầu chứ không phải giữa chừng.
@@ -212,6 +220,9 @@ extension BackupImport on BackupService {
                 createdAt: row['createdAt'] as int? ?? 0,
                 updatedAt: row['updatedAt'] as int? ?? 0,
                 deletedAt: Value(row['deletedAt'] as int?),
+                // Thông báo thô không đi theo file nên không còn gì để nối
+                // auto_event_id; chỉ giữ việc còn chờ xem lại hay không.
+                needsReview: Value(row['needsReview'] as bool? ?? false),
               ),
             );
       }
@@ -268,6 +279,17 @@ extension BackupImport on BackupService {
               ),
             );
       }
+
+      await _importAutoTrack(
+        mode: mode,
+        walletIds: walletIds,
+        categoryIds: categoryIds,
+        trackedRows: trackedRows,
+        accountWalletRows: accountWalletRows,
+        ruleRows: ruleRows,
+        keywordRows: keywordRows,
+        hasKeywords: hasKeywords,
+      );
     });
 
     return ImportResult(
@@ -332,6 +354,128 @@ extension BackupImport on BackupService {
       } on ArgumentError catch (e) {
         throw BackupException('$where: ${e.message}');
       }
+    }
+  }
+
+  /// Cài đặt tự động ghi và những gì đã học để phân loại.
+  ///
+  /// Ghi đè: thay bằng nội dung file. Gộp: thứ đang có trên máy thắng, file
+  /// chỉ thêm những gì máy chưa có (ví nhận của ngân hàng, quy tắc trùng
+  /// người nhận...).
+  Future<void> _importAutoTrack({
+    required ImportMode mode,
+    required Map<int, int> walletIds,
+    required Map<int, int> categoryIds,
+    required List<Map<String, dynamic>> trackedRows,
+    required List<Map<String, dynamic>> accountWalletRows,
+    required List<Map<String, dynamic>> ruleRows,
+    required List<Map<String, dynamic>> keywordRows,
+    required bool hasKeywords,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    if (mode == ImportMode.replace) {
+      // Danh mục đã xoá ở trên nên quy tắc và từ khoá cũng đã đi theo (khoá
+      // ngoại cascade). Ví đã xoá nên ví nhận của ngân hàng thành trống.
+      await (db.delete(
+        db.trackedApps,
+      )..where((t) => t.parserId.isNotNull())).go();
+      if (!hasKeywords) {
+        // File cũ không mang từ khoá: gieo lại từ khoá có sẵn theo tên danh
+        // mục vừa nhập, ở lần đồng bộ tới.
+        await (db.delete(db.settingsKv)
+              ..where((s) => s.key.equals(AutoTrackRepository.kKeywordsSeededKey)))
+            .go();
+      }
+    }
+
+    for (final row in trackedRows) {
+      final pkg = row['packageName'] as String?;
+      final parserId = row['parserId'] as String?;
+      if (pkg == null || parserId == null) continue;
+      final existing = await (db.select(db.trackedApps)
+            ..where((t) => t.packageName.equals(pkg)))
+          .getSingleOrNull();
+      if (existing != null && existing.parserId != null) continue;
+      await db.into(db.trackedApps).insertOnConflictUpdate(
+        TrackedAppsCompanion.insert(
+          packageName: pkg,
+          parserId: Value(parserId),
+          label: Value(row['label'] as String?),
+          enabled: Value(row['enabled'] as bool? ?? true),
+          defaultWalletId: Value(walletIds[row['defaultWalletId']]),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+    }
+
+    for (final row in accountWalletRows) {
+      final walletId = walletIds[row['walletId']];
+      final pkg = row['packageName'] as String?;
+      final suffix = row['accountSuffix'] as String?;
+      if (walletId == null || pkg == null || suffix == null) continue;
+      final app = await (db.select(db.trackedApps)
+            ..where((t) => t.packageName.equals(pkg)))
+          .getSingleOrNull();
+      if (app == null) continue;
+      await db.into(db.accountWallets).insert(
+        AccountWalletsCompanion.insert(
+          packageName: pkg,
+          accountSuffix: suffix,
+          walletId: walletId,
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
+
+    for (final row in ruleRows) {
+      final categoryId = categoryIds[row['categoryId']];
+      final key = row['matchKey'] as String?;
+      final flow = CategoryFlow.values
+          .where((f) => f.name == row['flow'])
+          .firstOrNull;
+      if (categoryId == null || key == null || key.isEmpty || flow == null) {
+        continue;
+      }
+      await db.into(db.receiverRules).insert(
+        ReceiverRulesCompanion.insert(
+          matchType: row['matchType'] as String? ?? 'name',
+          matchKey: key,
+          flow: flow,
+          displayName: row['displayName'] as String? ?? key,
+          categoryId: categoryId,
+          hitCount: Value(row['hitCount'] as int? ?? 0),
+          lastUsedAt: Value(row['lastUsedAt'] as int?),
+          createdAt: row['createdAt'] as int? ?? now,
+          updatedAt: row['updatedAt'] as int? ?? now,
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
+
+    for (final row in keywordRows) {
+      final categoryId = categoryIds[row['categoryId']];
+      final keyword = row['keyword'] as String?;
+      if (categoryId == null || keyword == null || keyword.isEmpty) continue;
+      await db.into(db.categoryKeywords).insert(
+        CategoryKeywordsCompanion.insert(
+          keyword: keyword,
+          categoryId: categoryId,
+          isBuiltIn: Value(row['isBuiltIn'] as bool? ?? false),
+          enabled: Value(row['enabled'] as bool? ?? true),
+          createdAt: row['createdAt'] as int? ?? now,
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
+    if (hasKeywords) {
+      await db.into(db.settingsKv).insertOnConflictUpdate(
+        SettingsKvCompanion.insert(
+          key: AutoTrackRepository.kKeywordsSeededKey,
+          value: 'true',
+        ),
+      );
     }
   }
 

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/db/autotrack_repository.dart';
 import '../../core/db/repository.dart';
 import '../../core/domain/bill.dart';
 import '../../core/domain/tx_kind.dart';
 import '../../core/format/money.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
+import '../autotrack/autotrack_providers.dart';
+import '../autotrack/categorize_actions.dart';
 import 'bill_section.dart';
 import 'split_bill_section.dart';
 import 'split_state.dart';
@@ -265,6 +268,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     final note = _noteController.text.trim();
 
     final TxActionResult result;
+    LearnResult? learned;
     if (form.usesSplit) {
       final splitError = _split.validate(amount);
       if (splitError != null) {
@@ -288,10 +292,38 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
         editingId: widget.editing?.tx.id,
         keepExistingBill: _billLoading,
       );
+      // Giao dịch tự ghi đổi danh mục: nhớ người nhận này cho lần sau.
+      final before = widget.editing?.tx;
+      if (before != null &&
+          before.autoEventId != null &&
+          form.categoryId != null &&
+          form.categoryId != before.categoryId &&
+          mounted) {
+        learned = await learnFromEdit(
+          context,
+          ref,
+          transactionId: before.id,
+          categoryId: form.categoryId!,
+        );
+      }
     }
 
     if (!mounted) return;
     Navigator.pop(context);
+    if (learned != null && learned.appliedToOthers > 0) {
+      final auto = ref.read(autoTrackRepositoryProvider);
+      final applied = learned;
+      showSnack(
+        context,
+        'Đã cập nhật, phân loại thêm ${applied.appliedToOthers} giao dịch của '
+        '${applied.receiverName}',
+        action: SnackBarAction(
+          label: 'Hoàn tác',
+          onPressed: () => auto.undoLearn(applied),
+        ),
+      );
+      return;
+    }
     _showResult(result);
   }
 

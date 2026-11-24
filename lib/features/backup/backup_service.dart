@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/db/autotrack_repository.dart';
 import '../../core/db/database.dart';
 import '../../core/domain/bill.dart';
 import '../../core/domain/fund_delta.dart';

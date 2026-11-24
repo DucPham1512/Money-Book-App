@@ -64,16 +64,20 @@ extension TransactionQueries on Repository {
   }
 
   /// Một giao dịch theo id, kể cả đã xoá mềm. Null nếu không có.
-  Future<TxView?> getTransaction(int id) async {
-    final row = await db
-        .customSelect(
-          '${Repository._txViewSelect} WHERE t.id = ?',
-          variables: [Variable.withInt(id)],
-          readsFrom: _txViewTables,
-        )
-        .getSingleOrNull();
-    return row == null ? null : _rowToTxView(row);
-  }
+  Future<TxView?> getTransaction(int id) => _txByIdQuery(id)
+      .getSingleOrNull()
+      .then((row) => row == null ? null : _rowToTxView(row));
+
+  /// Một giao dịch, phát lại khi nó (hoặc ví, danh mục, người của nó) đổi.
+  Stream<TxView?> watchTransactionById(int id) => _txByIdQuery(id)
+      .watchSingleOrNull()
+      .map((row) => row == null ? null : _rowToTxView(row));
+
+  Selectable<QueryRow> _txByIdQuery(int id) => db.customSelect(
+    '${Repository._txViewSelect} WHERE t.id = ?',
+    variables: [Variable.withInt(id)],
+    readsFrom: _txViewTables,
+  );
 
   /// Thêm giao dịch.
   ///
@@ -96,6 +100,8 @@ extension TransactionQueries on Repository {
     int? recurringId,
     bool isWriteoff = false,
     List<BillLine> bill = const [],
+    int? autoEventId,
+    bool needsReview = false,
   }) async {
     assert(amount > 0, 'amount phải dương, dấu suy ra từ kind');
     checkBill(amount, bill);
@@ -131,6 +137,8 @@ extension TransactionQueries on Repository {
               groupId: Value(groupId),
               recurringId: Value(recurringId),
               isWriteoff: Value(isWriteoff),
+              autoEventId: Value(autoEventId),
+              needsReview: Value(needsReview),
               createdAt: now,
               updatedAt: now,
             ),
@@ -186,6 +194,8 @@ extension TransactionQueries on Repository {
           fundDelta: Value(fundDelta),
           debtDelta: Value(kind.debtDelta(amount, hasPerson: personId != null)),
           note: Value(note),
+          // Mở ra sửa rồi bấm lưu tức là đã xem lại.
+          needsReview: const Value(false),
           updatedAt: Value(_now()),
         ),
       );

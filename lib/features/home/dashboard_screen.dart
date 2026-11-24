@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/money.dart';
 import '../../core/providers.dart';
+import '../autotrack/health_banners.dart';
+import '../autotrack/review_screen.dart';
 import '../settings/settings_screen.dart';
 import '../templates/template_editor_sheet.dart';
 import '../templates/template_screen.dart';
@@ -38,6 +40,10 @@ class DashboardScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
         children: const [
           _TotalAssetsCard(),
+          // Giao dịch tự ghi chờ phân loại. Không có gì thì tự ẩn.
+          ReviewQueueCard(),
+          // Mất quyền, lệch số dư, ngân hàng đổi mẫu... Ổn thì tự ẩn.
+          AutoTrackHealthBanners(),
           SizedBox(height: 12),
           // Ngay dưới số tiền đang có là câu hỏi quan trọng hơn: trong đó bao
           // nhiêu được tiêu thoải mái mà không đụng tới tiền ăn.
