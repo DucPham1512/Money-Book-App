@@ -7,7 +7,7 @@ trong máy, không server, không tài khoản.
 
 ```powershell
 flutter run -d <device>                 # dev, hot reload bằng phím r
-flutter test                            # 469 test, chạy trong ~10 giây
+flutter test                            # 480 test, chạy trong ~10 giây
 flutter analyze
 dart run build_runner build             # BẮT BUỘC sau khi sửa lib/core/db/tables.dart
 flutter build apk --release --target-platform android-arm64
@@ -279,6 +279,17 @@ Ngân hàng đổi câu chữ: chép tin "đã che" ở Nhật ký thông báo, 
 **tăng `version`**, phát hành. Tin `unmatched`/`failed` được giữ 30 ngày và
 đọc lại tự động khi `parserVersion` cũ hơn. Mẫu thật trong fixtures phải che
 số tài khoản và thay tên người.
+
+**Ghi mẫu** (app chưa có parser, ví dụ MoMo): tin lưu với trạng thái
+`captured`, giữ 30 ngày. Mẫu chỉ để viết parser: KHÔNG nằm trong Nhật ký thông
+báo (xem ngay dưới mục của app trong Cài đặt tự động ghi) và KHÔNG bao giờ
+thành giao dịch, kể cả khi app đó về sau có parser (`eventsToProcess` bỏ qua
+`captured`). Dừng ghi mẫu (`stopCapture`) xoá luôn các mẫu. Nút "Gửi N mẫu
+lên GitHub" (`buildSampleIssue`, `sample_issue.dart`) mở trang tạo issue của
+repo trong trình duyệt, nội dung là JSON đã che số dài, nhãn
+`documentation,enhancement`; người dùng tự xoá tên người rồi bấm Submit vì
+repo công khai. App vẫn không có quyền `INTERNET`, không giữ token. URL tối đa
+~8 KB (khoảng 10–15 mẫu mỗi lần).
 
 **Chống trùng hai lớp:** `dedupeHash` trên tin thô (gói + chữ + phút), rồi
 `txnKey` trên giao dịch đọc được (ngân hàng + mã giao dịch, hoặc thời gian +

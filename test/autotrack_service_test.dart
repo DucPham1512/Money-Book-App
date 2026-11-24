@@ -225,17 +225,72 @@ void main() {
     );
   });
 
-  test('tin ghi mẫu của BIDV được đọc thật khi gắn parser', () async {
+  test('tin ghi mẫu chỉ để phát triển: gắn parser rồi cũng không thành giao '
+      'dịch, chỉ tin đến sau mới được đọc', () async {
     await auto.removeTrackedApp(bidvPkg);
     await auto.startCapture(packageName: bidvPkg, until: DateTime(2026, 11, 29));
-    platform.post(bidv(), at);
+    platform.post(bidv(ref: 'FT001'), at);
     await service.sync();
     expect(await autoTxs(), isEmpty);
 
     await auto.bindParser(parserId: 'bidv', packageName: bidvPkg);
     await auto.setDefaultWallet(bidvPkg, bidvWallet);
     await service.sync();
+    expect(await autoTxs(), isEmpty, reason: 'mẫu không bao giờ thành giao dịch');
+    expect((await events()).single.status, EventStatus.captured.name);
+
+    platform.post(bidv(ref: 'FT002'), at.add(const Duration(minutes: 5)));
+    await service.sync();
     expect(await autoTxs(), hasLength(1));
+  });
+
+  group('mẫu của app đang ghi mẫu', () {
+    const pkg = 'com.mservice.momotransfer';
+
+    setUp(() async {
+      await auto.startCapture(
+        packageName: pkg,
+        label: 'MoMo',
+        until: DateTime(2026, 11, 29),
+      );
+    });
+
+    test('tách khỏi nhật ký thông báo, nằm riêng theo từng app', () async {
+      platform.post('Số tiền 10.000 ₫ về Ví', at, pkg: pkg, title: 'Nhận tiền');
+      platform.post(bidv(), at);
+      await service.sync();
+
+      final log = await auto.watchEvents().first;
+      expect(log.map((e) => e.packageName), [bidvPkg],
+          reason: 'nhật ký chỉ có tin thật');
+      final samples = await auto.watchCapturedEvents(pkg).first;
+      expect(samples.single.title, 'Nhận tiền');
+      expect(await auto.watchCapturedEvents(bidvPkg).first, isEmpty);
+    });
+
+    test('mẫu giữ 30 ngày, không phải 7', () async {
+      final now = DateTime(2026, 11, 22);
+      platform.post('mẫu 10 ngày trước', now.subtract(const Duration(days: 10)),
+          pkg: pkg);
+      platform.post('mẫu 40 ngày trước', now.subtract(const Duration(days: 40)),
+          pkg: pkg);
+      await service.sync();
+      await auto.purgeOld(now: now);
+      final left = await auto.watchCapturedEvents(pkg).first;
+      expect(left.map((e) => e.body), ['mẫu 10 ngày trước']);
+    });
+
+    test('dừng ghi mẫu thì xoá cả các mẫu của app đó', () async {
+      platform.post('mẫu MoMo', at, pkg: pkg);
+      platform.post(bidv(), at);
+      await service.sync();
+
+      await auto.stopCapture(pkg);
+      expect(await auto.trackedApp(pkg), isNull);
+      expect(await auto.watchCapturedEvents(pkg).first, isEmpty);
+      expect((await events()).single.packageName, bidvPkg,
+          reason: 'tin của app khác còn nguyên');
+    });
   });
 
   test('cập nhật parser thì tin chưa đọc được trước đó được đọc lại', () async {

@@ -31,7 +31,6 @@ const _filters = [
   _Filter('Không khớp', {EventStatus.unmatched}),
   _Filter('Lỗi', {EventStatus.failed}),
   _Filter('Chưa có ví', {EventStatus.unmapped}),
-  _Filter('Mẫu', {EventStatus.captured}),
   _Filter('Trùng', {EventStatus.duplicate}),
 ];
 

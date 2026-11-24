@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/db/autotrack_repository.dart';
 import '../../core/db/database.dart';
@@ -51,6 +52,20 @@ final autoTrackEventsProvider = StreamProvider.autoDispose
           .watch(autoTrackRepositoryProvider)
           .watchEvents(statuses: statuses);
     });
+
+/// Mẫu đã ghi của một app (gói), mới nhất trước.
+final capturedEventsProvider = StreamProvider.autoDispose
+    .family<List<NotificationEvent>, String>((ref, packageName) {
+      return ref
+          .watch(autoTrackRepositoryProvider)
+          .watchCapturedEvents(packageName);
+    });
+
+/// Mở một URL bằng app bên ngoài (trình duyệt). App không có quyền mạng, nên
+/// mọi thứ cần mạng đều đi qua trình duyệt. Test thay bằng hàm giả.
+final openUrlProvider = Provider<Future<bool> Function(Uri)>(
+  (ref) => (url) => launchUrl(url, mode: LaunchMode.externalApplication),
+);
 
 final reviewCountProvider = StreamProvider<int>((ref) {
   return ref.watch(autoTrackRepositoryProvider).watchReviewCount();
