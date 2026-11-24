@@ -420,14 +420,14 @@ class AutoTrackRepository {
     );
   }
 
-  Future<void> bumpRuleHit(String key, String flow) async {
+  Future<void> bumpRuleHit(String key, CategoryFlow flow) async {
     await db.customUpdate(
       'UPDATE receiver_rules SET hit_count = hit_count + 1, last_used_at = ? '
       "WHERE match_type = 'name' AND match_key = ? AND flow = ?",
       variables: [
         Variable.withInt(DateTime.now().millisecondsSinceEpoch),
         Variable.withString(key),
-        Variable.withString(flow),
+        Variable.withString(flow.name),
       ],
       updates: {db.receiverRules},
     );
@@ -455,7 +455,7 @@ class AutoTrackRepository {
                   ..where((e) => e.id.equals(tx.autoEventId!)))
                 .getSingleOrNull();
       final key = event?.receiverKey ?? '';
-      final flow = tx.kind == TxKind.income ? 'income' : 'expense';
+      final flow = tx.kind.categoryFlow;
 
       final before = <_TxSnapshot>[
         _TxSnapshot(tx.id, tx.categoryId, tx.needsReview, event?.id,
@@ -593,13 +593,13 @@ class AutoTrackRepository {
     );
   }
 
-  Future<ReceiverRule?> _rule(String key, String flow) =>
+  Future<ReceiverRule?> _rule(String key, CategoryFlow flow) =>
       (db.select(db.receiverRules)
             ..where(
               (r) =>
                   r.matchType.equals('name') &
                   r.matchKey.equals(key) &
-                  r.flow.equals(flow),
+                  r.flow.equalsValue(flow),
             ))
           .getSingleOrNull();
 
@@ -716,7 +716,7 @@ class AutoTrackRepository {
           KeywordView(
             keyword: db.categoryKeywords.map(r.data),
             categoryName: r.read<String>('category_name'),
-            flow: r.read<String>('flow'),
+            flow: CategoryFlow.values.byName(r.read<String>('flow')),
           ),
       ],
     );
@@ -843,7 +843,8 @@ class CategorizerData {
   final bool useSimilar;
   final bool useKeywords;
 
-  CategoryGuess guess(String receiverKey, String flow) => categorize(
+  CategoryGuess guess(String receiverKey, CategoryFlow flow) =>
+      categorize(
     receiverKey: receiverKey,
     flow: flow,
     rules: rules,
@@ -890,7 +891,7 @@ class LearnResult {
   final ReceiverRule? ruleBefore;
   final bool ruleCreated;
   final String ruleKey;
-  final String ruleFlow;
+  final CategoryFlow ruleFlow;
 }
 
 /// Một dòng trong hàng chờ phân loại.
@@ -921,7 +922,7 @@ class ReviewItem {
   final String? reason;
   final String? walletName;
 
-  String get flow => kind == TxKind.income ? 'income' : 'expense';
+  CategoryFlow get flow => kind.categoryFlow;
   bool get isUncategorized => categoryId == null;
 }
 
@@ -939,7 +940,7 @@ class KeywordView {
   });
   final CategoryKeyword keyword;
   final String categoryName;
-  final String flow;
+  final CategoryFlow flow;
 }
 
 /// Thông báo đã ghi gần nhất của một ví.

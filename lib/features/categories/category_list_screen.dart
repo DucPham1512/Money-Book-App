@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/db/database.dart';
+import '../../core/db/repository.dart';
+import '../../core/domain/category_flow.dart';
 import '../../core/icons.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
@@ -19,7 +21,7 @@ class CategoryListScreen extends ConsumerStatefulWidget {
 class _CategoryListScreenState extends ConsumerState<CategoryListScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController =
-      TabController(length: 2, vsync: this);
+      TabController(length: CategoryFlow.values.length, vsync: this);
 
   @override
   void dispose() {
@@ -27,7 +29,7 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen>
     super.dispose();
   }
 
-  String get _currentFlow => _tabController.index == 0 ? 'expense' : 'income';
+  CategoryFlow get _currentFlow => CategoryFlow.values[_tabController.index];
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +39,8 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen>
         bottom: TabBar(
           controller: _tabController,
           onTap: (_) => setState(() {}),
-          tabs: const [
-            Tab(text: 'Chi tiêu'),
-            Tab(text: 'Thu nhập'),
+          tabs: [
+            for (final f in CategoryFlow.values) Tab(text: f.label),
           ],
         ),
       ),
@@ -55,9 +56,8 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _CategoryTab(flow: 'expense'),
-          _CategoryTab(flow: 'income'),
+        children: [
+          for (final f in CategoryFlow.values) _CategoryTab(flow: f),
         ],
       ),
     );
@@ -67,12 +67,15 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen>
 class _CategoryTab extends ConsumerWidget {
   const _CategoryTab({required this.flow});
 
-  final String flow;
+  final CategoryFlow flow;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(
-      flow == 'income' ? incomeCategoriesProvider : expenseCategoriesProvider,
+      switch (flow) {
+        CategoryFlow.expense => expenseCategoriesProvider,
+        CategoryFlow.income => incomeCategoriesProvider,
+      },
     );
 
     return categories.when(
@@ -83,9 +86,11 @@ class _CategoryTab extends ConsumerWidget {
           return EmptyState(
             icon: Icons.label_outline,
             title: 'Chưa có danh mục nào',
-            message: flow == 'income'
-                ? 'Thêm danh mục thu nhập: Lương, Thưởng...'
-                : 'Thêm danh mục chi tiêu: Ăn uống, Đi lại...',
+            message: switch (flow) {
+              CategoryFlow.expense =>
+                'Thêm danh mục chi tiêu: Ăn uống, Đi lại...',
+              CategoryFlow.income => 'Thêm danh mục thu nhập: Lương, Thưởng...',
+            },
             action: FilledButton.icon(
               onPressed: () => Navigator.push(
                 context,

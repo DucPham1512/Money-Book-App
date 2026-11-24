@@ -7,6 +7,7 @@ import '../../core/format/dates.dart';
 import '../../core/widgets.dart';
 import 'autotrack_providers.dart';
 import 'categorize_actions.dart';
+import '../../core/domain/category_flow.dart';
 
 /// Những gì app đã học để tự phân loại: người nhận → danh mục, và từ khoá.
 class CategorizeRulesScreen extends StatelessWidget {
@@ -130,7 +131,10 @@ class _RulesTabState extends ConsumerState<_RulesTab> {
                   ),
                   subtitle: Text(
                     [
-                      r.rule.flow == 'income' ? 'Tiền vào' : 'Tiền ra',
+                      switch (r.rule.flow) {
+                        CategoryFlow.expense => 'Tiền ra',
+                        CategoryFlow.income => 'Tiền vào',
+                      },
                       '${r.rule.hitCount} lần tự xếp',
                       if (r.rule.lastUsedAt != null)
                         'gần nhất ${formatDate(DateTime.fromMillisecondsSinceEpoch(r.rule.lastUsedAt!))}',
@@ -287,22 +291,24 @@ class _KeywordsTab extends ConsumerWidget {
     controller.dispose();
     if (word == null || word.trim().isEmpty || !context.mounted) return;
 
-    final flow = await showModalBottomSheet<String>(
+    final flow = await showModalBottomSheet<CategoryFlow>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.arrow_upward),
-              title: const Text('Danh mục chi'),
-              onTap: () => Navigator.pop(context, 'expense'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.arrow_downward),
-              title: const Text('Danh mục thu'),
-              onTap: () => Navigator.pop(context, 'income'),
-            ),
+            for (final f in CategoryFlow.values)
+              ListTile(
+                leading: Icon(switch (f) {
+                  CategoryFlow.expense => Icons.arrow_upward,
+                  CategoryFlow.income => Icons.arrow_downward,
+                }),
+                title: Text(switch (f) {
+                  CategoryFlow.expense => 'Danh mục chi',
+                  CategoryFlow.income => 'Danh mục thu',
+                }),
+                onTap: () => Navigator.pop(context, f),
+              ),
           ],
         ),
       ),

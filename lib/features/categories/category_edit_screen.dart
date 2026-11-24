@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/db/database.dart';
+import '../../core/db/repository.dart';
+import '../../core/domain/category_flow.dart';
 import '../../core/icons.dart';
 import '../../core/providers.dart';
 import '../../core/theme.dart';
@@ -15,8 +17,7 @@ import '../../core/widgets.dart';
 class CategoryEditScreen extends ConsumerStatefulWidget {
   const CategoryEditScreen({super.key, required this.flow, this.editing});
 
-  /// 'expense' hoặc 'income'.
-  final String flow;
+  final CategoryFlow flow;
   final Category? editing;
 
   @override
@@ -27,7 +28,7 @@ class _CategoryEditScreenState extends ConsumerState<CategoryEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
 
-  late String _flow;
+  late CategoryFlow _flow;
   String? _iconKey;
   int? _colorValue;
 
@@ -43,7 +44,10 @@ class _CategoryEditScreenState extends ConsumerState<CategoryEditScreen> {
       _iconKey = editing.iconKey;
       _colorValue = editing.colorValue;
     } else {
-      _iconKey = widget.flow == 'income' ? 'salary' : 'food';
+      _iconKey = switch (widget.flow) {
+        CategoryFlow.expense => 'food',
+        CategoryFlow.income => 'salary',
+      };
       _colorValue = kPickerColors.first;
     }
   }
@@ -123,18 +127,17 @@ class _CategoryEditScreenState extends ConsumerState<CategoryEditScreen> {
                   (v == null || v.trim().isEmpty) ? 'Nhập tên danh mục' : null,
             ),
             const SizedBox(height: 16),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                  value: 'expense',
-                  label: Text('Chi tiêu'),
-                  icon: Icon(Icons.arrow_upward),
-                ),
-                ButtonSegment(
-                  value: 'income',
-                  label: Text('Thu nhập'),
-                  icon: Icon(Icons.arrow_downward),
-                ),
+            SegmentedButton<CategoryFlow>(
+              segments: [
+                for (final f in CategoryFlow.values)
+                  ButtonSegment(
+                    value: f,
+                    label: Text(f.label),
+                    icon: Icon(switch (f) {
+                      CategoryFlow.expense => Icons.arrow_upward,
+                      CategoryFlow.income => Icons.arrow_downward,
+                    }),
+                  ),
               ],
               selected: {_flow},
               onSelectionChanged: (s) => setState(() => _flow = s.first),

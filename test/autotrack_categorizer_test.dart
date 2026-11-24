@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moneybook/core/domain/autotrack/categorizer.dart';
 import 'package:moneybook/core/domain/autotrack/receiver_normalizer.dart';
+import 'package:moneybook/core/domain/category_flow.dart';
 
 /// Phân loại trong máy: chuẩn hoá người nhận rồi đoán danh mục.
 void main() {
@@ -41,22 +42,22 @@ void main() {
 
   group('categorize', () {
     const rules = [
-      RuleEntry(key: 'PHUC LONG CN Q3', flow: 'expense', categoryId: 1,
+      RuleEntry(key: 'PHUC LONG CN Q3', flow: CategoryFlow.expense, categoryId: 1,
           displayName: 'Phúc Long CN Q3', hitCount: 5),
-      RuleEntry(key: 'NGUYEN VAN A', flow: 'income', categoryId: 10),
-      RuleEntry(key: 'NGUYEN VAN A', flow: 'expense', categoryId: 2),
+      RuleEntry(key: 'NGUYEN VAN A', flow: CategoryFlow.income, categoryId: 10),
+      RuleEntry(key: 'NGUYEN VAN A', flow: CategoryFlow.expense, categoryId: 2),
     ];
     const keywords = [
-      KeywordEntry(keyword: 'CAFE', flow: 'expense', categoryId: 1),
-      KeywordEntry(keyword: 'GRAB', flow: 'expense', categoryId: 3),
-      KeywordEntry(keyword: 'GRAB FOOD', flow: 'expense', categoryId: 1),
-      KeywordEntry(keyword: 'BE', flow: 'expense', categoryId: 3),
-      KeywordEntry(keyword: 'LUONG', flow: 'income', categoryId: 11),
-      KeywordEntry(keyword: 'SHOP', flow: 'expense', categoryId: 4),
-      KeywordEntry(keyword: 'MART', flow: 'expense', categoryId: 5),
+      KeywordEntry(keyword: 'CAFE', flow: CategoryFlow.expense, categoryId: 1),
+      KeywordEntry(keyword: 'GRAB', flow: CategoryFlow.expense, categoryId: 3),
+      KeywordEntry(keyword: 'GRAB FOOD', flow: CategoryFlow.expense, categoryId: 1),
+      KeywordEntry(keyword: 'BE', flow: CategoryFlow.expense, categoryId: 3),
+      KeywordEntry(keyword: 'LUONG', flow: CategoryFlow.income, categoryId: 11),
+      KeywordEntry(keyword: 'SHOP', flow: CategoryFlow.expense, categoryId: 4),
+      KeywordEntry(keyword: 'MART', flow: CategoryFlow.expense, categoryId: 5),
     ];
 
-    CategoryGuess guess(String key, {String flow = 'expense'}) => categorize(
+    CategoryGuess guess(String key, {CategoryFlow flow = CategoryFlow.expense}) => categorize(
       receiverKey: key,
       flow: flow,
       rules: rules,
@@ -72,7 +73,7 @@ void main() {
 
     test('cùng người nhưng khác chiều tiền thì theo quy tắc của chiều đó', () {
       expect(guess('NGUYEN VAN A').categoryId, 2);
-      expect(guess('NGUYEN VAN A', flow: 'income').categoryId, 10);
+      expect(guess('NGUYEN VAN A', flow: CategoryFlow.income).categoryId, 10);
     });
 
     test('tên gần giống: đoán, phải xem lại', () {
@@ -111,7 +112,7 @@ void main() {
 
     test('từ khoá của danh mục thu không gắn vào khoản chi', () {
       expect(guess('TIEN LUONG').categoryId, isNull);
-      expect(guess('TIEN LUONG', flow: 'income').categoryId, 11);
+      expect(guess('TIEN LUONG', flow: CategoryFlow.income).categoryId, 11);
     });
 
     test('không có gì khớp, hoặc người nhận rỗng: chưa phân loại', () {
@@ -124,7 +125,7 @@ void main() {
     test('tắt đoán theo tên giống / từ khoá thì chỉ còn quy tắc đúng', () {
       CategoryGuess off(String key) => categorize(
         receiverKey: key,
-        flow: 'expense',
+        flow: CategoryFlow.expense,
         rules: rules,
         keywords: keywords,
         useSimilar: false,

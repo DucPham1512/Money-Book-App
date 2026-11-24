@@ -2,26 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moneybook/core/db/repository.dart';
 import 'package:moneybook/core/format/dates.dart';
 
-/// Dựng một tiến độ ngân sách giả lập để kiểm tra riêng phần tính nhịp độ,
-/// không cần đụng tới cơ sở dữ liệu.
-BudgetProgress makeProgress({
-  required int limit,
-  required int spent,
-  required int daysElapsed,
-  int daysInMonth = 30,
-}) {
-  return BudgetProgress(
-    budgetId: 1,
-    categoryId: 1,
-    categoryName: 'Ăn uống',
-    limitAmount: limit,
-    spent: spent,
-    isRecurring: true,
-    monthKey: 202609,
-    daysInMonth: daysInMonth,
-    daysElapsed: daysElapsed,
-  );
-}
+import 'helpers/builders.dart';
 
 void main() {
   group('mức tiêu mỗi ngày', () {

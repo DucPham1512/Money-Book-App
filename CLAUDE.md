@@ -7,7 +7,7 @@ trong máy, không server, không tài khoản.
 
 ```powershell
 flutter run -d <device>                 # dev, hot reload bằng phím r
-flutter test                            # ~400 test, chạy trong ~10 giây
+flutter test                            # 469 test, chạy trong ~10 giây
 flutter analyze
 dart run build_runner build             # BẮT BUỘC sau khi sửa lib/core/db/tables.dart
 flutter build apk --release --target-platform android-arm64
@@ -38,7 +38,9 @@ Tuyệt đối không viết `if (kind == expense) balance -= amount` ở bất 
 
 **`lib/core/domain/tx_kind.dart` là nguồn sự thật duy nhất** về dấu tiền, về việc
 loại nào cần danh mục / cần người / cần chân ví nào. Thêm loại giao dịch mới thì
-chỉ sửa file này; màn hình `tx_editor_screen.dart` tự dựng form theo các cờ đó.
+chỉ sửa file này; màn hình `tx_editor_screen.dart` tự dựng form theo các cờ đó
+(quy tắc của form nằm ở `TxForm`, `tx_form_rules.dart`; không so sánh
+`kind == TxKind.x` trong màn hình).
 
 **Công nợ dùng cột `debt_delta` lưu sẵn**, không suy ra lúc truy vấn. Dương =
 người đó nợ mình, âm = mình nợ họ. Nhờ vậy sổ nợ chỉ là một phép SUM, và xử lý
@@ -58,10 +60,20 @@ mượn là dòng nợ; điều chỉnh số dư càng không.
 
 ```
 lib/core/
-  domain/tx_kind.dart      ★ enum 8 loại + logic dấu tiền
+  domain/tx_kind.dart      ★ enum 8 loại + logic dấu tiền + cờ cho màn ghi
+  domain/category_flow.dart  enum chiều danh mục (chi / thu), lưu bằng tên;
+                           tx_kind.dart export lại
+  domain/tx_rules.dart     kiểm tra chung cho mọi đường ghi giao dịch (kể cả
+                           nhập sao lưu): trả dùm không kèm ví, hoá đơn khớp tổng
+  domain/budget_progress.dart  nhịp độ ngân sách, capBudgetsByCash (thuần Dart)
   db/tables.dart           định nghĩa bảng (sửa xong PHẢI chạy build_runner)
   db/database.dart         migration, PRAGMA, dữ liệu gieo sẵn
-  db/repository.dart       toàn bộ truy vấn — không viết SQL ở tầng UI
+  db/repository.dart       class Repository + biểu thức SQL dùng chung
+                           (_walletBalanceExpr, _txViewSelect, _fundSavedExpr…)
+  db/repository_<miền>.dart  truy vấn từng miền, là `part` + `extension … on
+                           Repository` nên nơi gọi vẫn viết repo.method();
+                           file gọi method phải import repository.dart
+  db/repository_models.dart  TxView, WalletWithBalance… (repository.dart export)
   format/money.dart        int đồng <-> chuỗi có dấu chấm, TextInputFormatter
   format/dates.dart        dayKey/monthKey, nhãn tiếng Việt
   providers.dart           Riverpod, đều là StreamProvider nên UI tự cập nhật
@@ -71,6 +83,12 @@ lib/features/<tính năng>/  mỗi thư mục một miền nghiệp vụ
 ## Ràng buộc nghiệp vụ đã cài
 
 - Ví có giao dịch: không xoá được, chỉ lưu trữ (`is_archived`).
+- Ví đang giữ quỹ: không xoá, không lưu trữ được (`archiveWallet` ném
+  `ArgumentError`). Ví lưu trữ rời tổng tài sản mà quỹ vẫn bị trừ khỏi tiền
+  tiêu được, nên quỹ sẽ bị trừ vào ví khác.
+- Quỹ không đổi được ví giữ quỹ (`updateFund` ném `ArgumentError`, màn sửa
+  khoá ô chọn ví): giao dịch nạp / rút cũ vẫn trỏ vào ví cũ. Muốn chuyển thì
+  lập quỹ mới ở ví mới, chuyển tiền sang, rồi xoá quỹ cũ.
 - Người còn dư nợ khác 0: không xoá được, phải tất toán trước.
 - Xoá danh mục: giao dịch giữ nguyên, chỉ thành "Chưa phân loại".
 - Xoá giao dịch là xoá mềm (`deleted_at`) để hoàn tác được.
@@ -219,7 +237,7 @@ khoản chi.
 `updateTransaction(bill: null)` giữ nguyên hoá đơn, `bill: []` là bỏ. Xoá mềm
 để nguyên các dòng (hoàn tác được), xoá hẳn thì `ON DELETE CASCADE` dọn theo.
 Không đi cùng trả dùm (trả dùm tách hoá đơn thành nhiều giao dịch). CSV chưa
-xuất các món, JSON thì có (`billItems`, định dạng sao lưu v5).
+xuất các món, JSON thì có (`billItems`, có từ định dạng sao lưu v5; tự động ghi thêm ở v6).
 
 ## Sao lưu
 
@@ -227,7 +245,11 @@ xuất các món, JSON thì có (`billItems`, định dạng sao lưu v5).
 **phải có BOM** nếu không tiếng Việt vỡ trên Windows).
 
 Khi nhập, id trong file được ánh xạ sang id mới chứ không dùng lại — chế độ gộp
-gần như chắc chắn đụng id. `dayKey`/`monthKey`/`debtDelta` tính lại từ dữ liệu
+gần như chắc chắn đụng id. `groupId` cũng vậy: gộp một file hai lần thì hai cặp
+trả dùm không được dính thành một nhóm. Mọi dòng giao dịch được kiểm tra TRƯỚC
+khi đụng DB (số tiền dương, loại hợp lệ, hoá đơn khớp tổng) và báo
+`BackupException`. Khoản chi vừa có ví vừa có người là dữ liệu kiểu cũ: nhập
+vào thì bỏ người, không đẻ nợ. `dayKey`/`monthKey`/`debtDelta` tính lại từ dữ liệu
 gốc chứ không tin file, phòng bản sao lưu đến từ máy khác múi giờ. Toàn bộ chạy
 trong một `db.transaction()`.
 
@@ -296,3 +318,15 @@ cài đặt bị hạn chế.
 
 Giao dịch định kỳ + nhắc nhở (bảng `recurring_templates` đã có sẵn), bộ lọc danh
 sách giao dịch, dark mode toggle thủ công, icon app riêng.
+
+Còn treo từ đợt dọn code (tháng 11/2026):
+
+- Chi từ quỹ có tính vào ngân sách (đã chốt), nhưng vì thế phần hạn mức còn
+  giữ giảm theo, nên tiền tự do TĂNG lên đúng khoản đó dù tiền tiêu được
+  không đổi. Chưa quyết có sửa không.
+- Nhập sao lưu kiểu gộp tạo trùng danh mục và người (chưa khớp theo tên).
+- `ImportResult.stats` đếm dòng trong file, không phải dòng đã nhập (quỹ,
+  ngân sách bị bỏ qua vẫn được đếm).
+- SQL của phần sao lưu chưa dời về `lib/core/db/`.
+- `recurringId` không được xuất ra file sao lưu.
+- Chưa có test bắt `readsFrom` thiếu bảng cho từng miền của Repository.

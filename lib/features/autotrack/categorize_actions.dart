@@ -7,11 +7,12 @@ import '../../core/icons.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
 import 'autotrack_providers.dart';
+import '../../core/domain/category_flow.dart';
 
 /// Bảng chọn danh mục theo chiều tiền. Trả về id, hoặc null nếu bỏ qua.
 Future<int?> pickCategory(
   BuildContext context, {
-  required String flow,
+  required CategoryFlow flow,
   int? selected,
   String? title,
 }) {
@@ -30,7 +31,7 @@ Future<int?> pickCategory(
 class _CategorySheet extends ConsumerWidget {
   const _CategorySheet({required this.flow, this.selected, this.title});
 
-  final String flow;
+  final CategoryFlow flow;
   final int? selected;
   final String? title;
 
@@ -39,9 +40,10 @@ class _CategorySheet extends ConsumerWidget {
     final cats =
         ref
             .watch(
-              flow == 'income'
-                  ? incomeCategoriesProvider
-                  : expenseCategoriesProvider,
+              switch (flow) {
+                CategoryFlow.expense => expenseCategoriesProvider,
+                CategoryFlow.income => incomeCategoriesProvider,
+              },
             )
             .value ??
         const <Category>[];

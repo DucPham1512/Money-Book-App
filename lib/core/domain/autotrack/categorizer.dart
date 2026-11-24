@@ -1,4 +1,5 @@
 import 'receiver_normalizer.dart';
+import '../category_flow.dart';
 
 /// Vì sao một giao dịch tự ghi có danh mục này. Lưu bằng [name] vào
 /// `notification_events.category_source`.
@@ -36,7 +37,7 @@ class RuleEntry {
   final String key;
 
   /// expense | income
-  final String flow;
+  final CategoryFlow flow;
   final int categoryId;
   final String displayName;
   final int hitCount;
@@ -53,7 +54,7 @@ class KeywordEntry {
   final String keyword;
 
   /// Chiều của danh mục, để từ khoá của danh mục thu không gắn vào khoản chi.
-  final String flow;
+  final CategoryFlow flow;
   final int categoryId;
 }
 
@@ -82,7 +83,7 @@ const kSimilarThreshold = 0.75;
 /// có. Mọi bước chỉ xét danh mục cùng chiều [flow] với giao dịch.
 CategoryGuess categorize({
   required String receiverKey,
-  required String flow,
+  required CategoryFlow flow,
   required List<RuleEntry> rules,
   List<KeywordEntry> keywords = const [],
   bool useSimilar = true,

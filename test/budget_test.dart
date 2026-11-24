@@ -29,7 +29,7 @@ void main() {
     Future<int> category(String name) => repo.insertCategory(
           CategoriesCompanion.insert(
             name: name,
-            flow: 'expense',
+            flow: CategoryFlow.expense,
             createdAt: 0,
             updatedAt: 0,
           ),

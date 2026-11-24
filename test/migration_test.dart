@@ -277,7 +277,7 @@ void main() {
         ReceiverRulesCompanion.insert(
           matchType: 'name',
           matchKey: 'PHUC LONG',
-          flow: 'expense',
+          flow: CategoryFlow.expense,
           displayName: 'Phúc Long',
           categoryId: 1,
           createdAt: 0,

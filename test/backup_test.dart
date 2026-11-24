@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,7 +51,7 @@ void main() {
     catAnUong = await sourceRepo.insertCategory(
       CategoriesCompanion.insert(
         name: 'Ăn uống',
-        flow: 'expense',
+        flow: CategoryFlow.expense,
         createdAt: 100,
         updatedAt: 100,
       ),
@@ -367,6 +369,28 @@ void main() {
       );
     });
 
+    test('danh mục có chiều lạ thì chặn, không đụng DB', () async {
+      await sourceRepo.addTransaction(
+        kind: TxKind.expense,
+        amount: 50000,
+        occurredAt: DateTime(2026, 9, 6),
+        walletFromId: wallet,
+        categoryId: catAnUong,
+      );
+      final data =
+          jsonDecode(await sourceBackup.buildJson()) as Map<String, dynamic>;
+      expect((data['categories'] as List).first['flow'], 'expense',
+          reason: 'file vẫn ghi chiều bằng chữ như trước');
+      (data['categories'] as List).first['flow'] = 'savings';
+      final before = await sourceRepo.watchTotalAssets().first;
+
+      await expectLater(
+        sourceBackup.import(jsonEncode(data), mode: ImportMode.replace),
+        throwsA(isA<BackupException>()),
+      );
+      expect(await sourceRepo.watchTotalAssets().first, before);
+    });
+
     test('file hỏng không làm mất dữ liệu đang có', () async {
       final before = await sourceRepo.watchTotalAssets().first;
       try {
@@ -417,6 +441,115 @@ void main() {
       final json = await sourceBackup.buildJson();
       expect(json, contains('"kind": "lend"'),
           reason: 'đổi thứ tự enum sau này không được làm hỏng file cũ');
+    });
+  });
+
+  group('nhóm giao dịch (trả dùm)', () {
+    test('gộp cùng một file hai lần không dính hai nhóm vào nhau', () async {
+      await sourceRepo.addSplitBill(
+        walletFromId: wallet,
+        myShare: 50000,
+        sharesByPerson: {nam: 50000},
+        occurredAt: DateTime(2026, 9, 6, 12, 0),
+        categoryId: catAnUong,
+      );
+      final json = await sourceBackup.buildJson();
+
+      final target = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(target.close);
+      await target.customStatement('PRAGMA foreign_keys = ON');
+      final backup = BackupService(target);
+      await backup.import(json, mode: ImportMode.merge);
+      await backup.import(json, mode: ImportMode.merge);
+
+      final repo = Repository(target);
+      final txs = await repo.watchTransactions().first;
+      expect(txs, hasLength(4));
+      final groups = txs.map((v) => v.tx.groupId).toSet();
+      expect(groups, hasLength(2), reason: 'mỗi lần nhập là một nhóm riêng');
+      for (final g in groups) {
+        expect(g, isNotNull);
+        expect(await repo.countInGroup(g!), 2);
+      }
+    });
+  });
+
+  group('file hỏng hay bị sửa tay thì không nhập dở dang', () {
+    /// Xuất một khoản chi kèm hoá đơn, sửa file bằng [mutate] rồi nhập.
+    Future<(AppDatabase, Future<ImportResult> Function())> corrupt(
+      void Function(Map<String, dynamic> tx, Map<String, dynamic> data) mutate,
+    ) async {
+      await sourceRepo.addTransaction(
+        kind: TxKind.expense,
+        amount: 50000,
+        occurredAt: DateTime(2026, 9, 6, 12, 0),
+        walletFromId: wallet,
+        categoryId: catAnUong,
+      );
+      final data =
+          jsonDecode(await sourceBackup.buildJson()) as Map<String, dynamic>;
+      mutate((data['transactions'] as List).first as Map<String, dynamic>,
+          data);
+      final target = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(target.close);
+      await target.customStatement('PRAGMA foreign_keys = ON');
+      return (
+        target,
+        () => BackupService(target)
+            .import(jsonEncode(data), mode: ImportMode.replace),
+      );
+    }
+
+    Future<void> expectRejected(
+      void Function(Map<String, dynamic> tx, Map<String, dynamic> data) mutate,
+    ) async {
+      final (target, run) = await corrupt(mutate);
+      final walletsBefore = await target.select(target.wallets).get();
+      await expectLater(run(), throwsA(isA<BackupException>()));
+      expect(await target.select(target.wallets).get(), walletsBefore,
+          reason: 'không được xoá dữ liệu đang có rồi mới phát hiện lỗi');
+      expect(await target.select(target.transactions).get(), isEmpty);
+    }
+
+    test('số tiền âm', () async {
+      await expectRejected((tx, _) => tx['amount'] = -50000);
+    });
+
+    test('số tiền bằng 0', () async {
+      await expectRejected((tx, _) => tx['amount'] = 0);
+    });
+
+    test('loại giao dịch không có trong app', () async {
+      await expectRejected((tx, _) => tx['kind'] = 'gift');
+    });
+
+    test('hoá đơn không khớp số tiền', () async {
+      await expectRejected((tx, data) {
+        data['billItems'] = [
+          {
+            'id': 1,
+            'transactionId': tx['id'],
+            'name': 'Phở',
+            'quantity': 1,
+            'unitPrice': 40000,
+            'isDiscount': false,
+            'sortOrder': 0,
+          },
+        ];
+      });
+    });
+
+    test('khoản chi cũ vừa có ví vừa có người thì bỏ người, không đẻ nợ',
+        () async {
+      // Trước khi có "người khác trả dùm", người trên khoản chi không mang
+      // nghĩa gì. Nhập lại mà coi đó là nợ thì vừa trừ ví vừa ghi nợ.
+      final (target, run) = await corrupt((tx, _) => tx['personId'] = nam);
+      await run();
+      final repo = Repository(target);
+      final tx = (await repo.watchTransactions().first).single.tx;
+      expect(tx.personId, isNull);
+      expect(tx.debtDelta, 0);
+      expect(await repo.watchTotalOwed().first, 0);
     });
   });
 }

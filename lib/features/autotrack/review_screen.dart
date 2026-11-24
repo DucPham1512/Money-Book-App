@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/db/autotrack_repository.dart';
+import '../../core/db/repository.dart';
 import '../../core/domain/tx_kind.dart';
 import '../../core/format/dates.dart';
 import '../../core/providers.dart';
@@ -75,7 +76,7 @@ List<_Group> _groupByReceiver(List<ReviewItem> items) {
     // Không có người nhận thì không gom được: mỗi giao dịch một nhóm.
     final key = i.receiverKey.isEmpty
         ? 'tx:${i.transactionId}'
-        : '${i.flow}|${i.receiverKey}';
+        : '${i.flow.name}|${i.receiverKey}';
     (groups[key] ??= []).add(i);
   }
   return [for (final g in groups.values) _Group(g)];

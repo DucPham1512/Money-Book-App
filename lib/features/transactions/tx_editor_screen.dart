@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/db/autotrack_repository.dart';
 import '../../core/db/repository.dart';
 import '../../core/domain/bill.dart';
 import '../../core/domain/tx_kind.dart';
-import '../../core/format/dates.dart';
 import '../../core/format/money.dart';
-import '../../core/icons.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
-import '../categories/category_edit_screen.dart';
-import '../people/person_edit_screen.dart';
-import 'bill_section.dart';
-import '../../core/db/autotrack_repository.dart';
 import '../autotrack/autotrack_providers.dart';
 import '../autotrack/categorize_actions.dart';
-import 'spend_impact_note.dart';
+import 'bill_section.dart';
 import 'split_bill_section.dart';
+import 'split_state.dart';
+import 'tx_editor_actions.dart';
+import 'tx_form_rules.dart';
+import 'widgets/fund_picker.dart';
+import 'widgets/impact_note_section.dart';
+import 'widgets/kind_selector.dart';
+import 'widgets/occurred_at_tile.dart';
+import 'widgets/paid_by_other_section.dart';
+import 'widgets/tx_kind_fields.dart';
 
 /// Mở màn hình ghi giao dịch. Gom một chỗ để mọi nơi trong app gọi giống nhau.
 Future<void> openTxEditor(
@@ -89,27 +93,38 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
   /// Hoá đơn chi tiết. Bật lên thì số tiền là tổng hoá đơn.
   final _bill = BillState();
 
+  /// Đang sửa một khoản có hoá đơn mà hoá đơn chưa đọc xong. Lúc này lưu thì
+  /// phải giữ nguyên hoá đơn cũ, không được hiểu "chưa bật" là "bỏ hoá đơn".
+  bool _billLoading = false;
+
   /// Người khác trả dùm: không chọn ví, chọn người mình nợ.
   bool _paidByOther = false;
 
   bool get _isEditing => widget.editing != null;
 
-  /// Có được chia tiền ở trạng thái hiện tại không. Trả dùm và hoá đơn chi
-  /// tiết không đi cùng nhau: trả dùm tách hoá đơn thành nhiều giao dịch.
-  /// Người khác trả thì mình chỉ ghi phần của mình, không có gì để chia.
-  bool get _canSplit =>
-      !_isEditing &&
-      _kind == TxKind.expense &&
-      !_bill.enabled &&
-      !_paidByOther;
+  /// Ảnh chụp các lựa chọn hiện tại. Mọi quy tắc (công tắc nào được bật, đổi
+  /// loại thì dọn gì, chọn thiếu gì) nằm ở [TxForm]; màn hình chỉ giữ trạng
+  /// thái.
+  TxForm get _form => TxForm(
+    kind: _kind,
+    walletFromId: _walletFromId,
+    walletToId: _walletToId,
+    categoryId: _categoryId,
+    personId: _personId,
+    fundId: _fundId,
+    paidByOther: _paidByOther,
+    splitEnabled: _split.enabled,
+    billEnabled: _bill.enabled,
+    isEditing: _isEditing,
+  );
 
-  bool get _canPayByOther => _kind.canBePaidByOther && !_split.enabled;
+  bool get _canSplit => _form.canSplit;
 
-  bool get _isPaidByOther => _canPayByOther && _paidByOther;
+  bool get _canPayByOther => _form.canPayByOther;
 
-  bool get _canBill => _kind == TxKind.expense && !_split.enabled;
+  bool get _canBill => _form.canBill;
 
-  bool get _usesBill => _canBill && _bill.enabled;
+  bool get _usesBill => _form.usesBill;
 
   /// Số tiền sẽ ghi: tổng hoá đơn nếu đang dùng hoá đơn, không thì số gõ tay.
   int get _amount =>
@@ -131,7 +146,10 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
       _paidByOther = editing.isPaidByOther;
       _occurredAt =
           DateTime.fromMillisecondsSinceEpoch(editing.tx.occurredAt);
-      if (editing.hasBill) _loadBill(editing.tx.id);
+      if (editing.hasBill) {
+        _billLoading = true;
+        _loadBill(editing.tx.id);
+      }
     } else if (widget.fromTemplate != null) {
       final t = widget.fromTemplate!;
       _kind = TxKind.expense;
@@ -151,39 +169,39 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
   Future<void> _loadBill(int txId) async {
     final items = await ref.read(repositoryProvider).watchBill(txId).first;
     if (!mounted) return;
-    setState(() => _bill.load(items));
+    setState(() {
+      _bill.load(items);
+      _billLoading = false;
+    });
   }
 
-  /// Có lưu được các trường đang nhập thành mẫu chi tiêu không.
-  bool get _canSaveAsTemplate =>
-      !_isEditing &&
-      _kind == TxKind.expense &&
-      !_split.enabled &&
-      !_bill.enabled &&
-      !_paidByOther;
+  /// Việc với dữ liệu (ghi, xoá, lưu mẫu) nằm ở [TxEditorActions]; màn hình
+  /// chỉ lo thông báo, đóng màn và hộp thoại.
+  TxEditorActions get _actions => TxEditorActions(ref.read(repositoryProvider));
+
+  /// Hiện câu báo của một thao tác, kèm nút Hoàn tác nếu thao tác có.
+  void _showResult(TxActionResult result) {
+    final undo = result.undo;
+    showSnack(
+      context,
+      result.message,
+      action: undo == null
+          ? null
+          : SnackBarAction(label: 'Hoàn tác', onPressed: undo),
+    );
+  }
 
   /// Lưu các trường đang nhập thành một mẫu, để lần sau ghi một chạm. Không
   /// đóng màn hình — người dùng vẫn ghi khoản này như thường.
   Future<void> _saveAsTemplate() async {
-    final note = _noteController.text.trim();
-    if (note.isEmpty && _categoryId == null) {
-      showSnack(context, 'Nhập ghi chú hoặc chọn danh mục để đặt tên cho mẫu');
-      return;
-    }
-    final amount = parseVnd(_amountController.text);
-    await ref.read(repositoryProvider).insertTemplate(
-          note: note.isEmpty ? null : note,
-          amount: amount > 0 ? amount : null,
-          walletId: _walletFromId,
-          categoryId: _categoryId,
-        );
-    if (!mounted) return;
-    showSnack(
-      context,
-      amount > 0 && _walletFromId != null && _categoryId != null
-          ? 'Đã lưu mẫu. Lần sau bấm ở màn Tổng quan là ghi xong'
-          : 'Đã lưu mẫu. Các trường để trống sẽ được hỏi khi dùng',
+    final result = await _actions.saveAsTemplate(
+      note: _noteController.text.trim(),
+      amount: parseVnd(_amountController.text),
+      walletId: _walletFromId,
+      categoryId: _categoryId,
     );
+    if (!mounted) return;
+    showSnack(context, result.message);
   }
 
   void _applyPresetWallet() {
@@ -205,104 +223,34 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     super.dispose();
   }
 
-  /// Đổi loại giao dịch thì phải dọn những trường không còn ý nghĩa, nếu không
-  /// sẽ ghi xuống DB một danh mục hoặc một người chẳng liên quan gì.
+  /// Đổi loại giao dịch: [TxForm.afterKindChange] quyết định dọn trường nào.
   void _changeKind(TxKind next) {
     if (next == _kind) return;
+    final f = _form.afterKindChange(next);
     setState(() {
-      final previous = _kind;
-      _kind = next;
-
-      if (!next.needsCategory) _categoryId = null;
-      if (!next.needsPerson) _personId = null;
-
-      // Chia tiền và lấy từ quỹ chỉ có nghĩa với một khoản chi.
-      if (next != TxKind.expense) {
-        _split.enabled = false;
-        _fundId = null;
-      }
-      if (!next.canBePaidByOther) _paidByOther = false;
-
-      if (next == TxKind.transfer) {
-        _walletFromId ??= _walletToId;
-        _walletToId = null;
-      } else {
-        // Giữ lại ví người dùng đang chọn khi đổi giữa các loại một chân ví,
-        // để đỡ phải chọn lại.
-        final currentWallet = previous.needsWalletFrom
-            ? _walletFromId
-            : (previous.needsWalletTo ? _walletToId : null);
-        _walletFromId = null;
-        _walletToId = null;
-        if (next.needsWalletFrom) {
-          _walletFromId = currentWallet;
-        } else if (next.needsWalletTo) {
-          _walletToId = currentWallet;
-        }
-      }
+      _kind = f.kind;
+      _walletFromId = f.walletFromId;
+      _walletToId = f.walletToId;
+      _categoryId = f.categoryId;
+      _personId = f.personId;
+      _fundId = f.fundId;
+      _paidByOther = f.paidByOther;
+      _split.enabled = f.splitEnabled;
     });
   }
 
   Future<void> _pickDateTime() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _occurredAt,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'Chọn ngày giao dịch',
-    );
-    if (date == null || !mounted) return;
-
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_occurredAt),
-      helpText: 'Chọn giờ',
-    );
-    if (!mounted) return;
-
-    setState(() {
-      _occurredAt = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time?.hour ?? _occurredAt.hour,
-        time?.minute ?? _occurredAt.minute,
-      );
-    });
+    final picked = await pickOccurredAt(context, _occurredAt);
+    if (picked == null || !mounted) return;
+    setState(() => _occurredAt = picked);
   }
 
-  String? _validateSelection() {
-    if (_kind.needsCategory && _categoryId == null) {
-      return 'Hãy chọn danh mục';
-    }
-    if (_kind.needsPerson && _personId == null) {
-      return 'Hãy chọn người';
-    }
-    if (_isPaidByOther) {
-      return _personId == null ? 'Hãy chọn người đã trả dùm' : null;
-    }
-    if (_kind == TxKind.transfer) {
-      if (_walletFromId == null) return 'Hãy chọn ví nguồn';
-      if (_walletToId == null) return 'Hãy chọn ví nhận';
-      // Nạp / rút quỹ ngay trong ví giữ quỹ thì hai chân trùng nhau là đúng.
-      if (_walletFromId == _walletToId && _fundId == null) {
-        return 'Ví nguồn và ví nhận phải khác nhau';
-      }
-      return null;
-    }
-    if (_kind.needsWalletFrom && _walletFromId == null) {
-      return 'Hãy chọn ví';
-    }
-    if (_kind.needsWalletTo && _walletToId == null) {
-      return 'Hãy chọn ví';
-    }
-    return null;
-  }
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final error = _validateSelection();
+    final form = _form;
+    final error = form.validateSelection();
     if (error != null) {
       showSnack(context, error);
       return;
@@ -318,125 +266,65 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
 
     final amount = _amount;
     final note = _noteController.text.trim();
-    final repo = ref.read(repositoryProvider);
-    final bill = _usesBill ? _bill.lines : const <BillLine>[];
-    // Người khác trả thì tiền không qua ví hay quỹ nào. Khoản chi thường thì
-    // không mang người theo — có người là thành nợ.
-    final walletFromId = _isPaidByOther ? null : _walletFromId;
-    final fundId = _isPaidByOther ? null : _fundId;
-    final personId = _kind.needsPerson || _isPaidByOther ? _personId : null;
 
-    if (_canSplit && _split.enabled) {
+    final TxActionResult result;
+    LearnResult? learned;
+    if (form.usesSplit) {
       final splitError = _split.validate(amount);
       if (splitError != null) {
         showSnack(context, splitError);
         return;
       }
-      await _saveSplitBill(repo, amount, note);
-      return;
-    }
-
-    LearnResult? learned;
-    if (_isEditing) {
-      final before = widget.editing!.tx;
-      await repo.updateTransaction(
-        id: widget.editing!.tx.id,
-        kind: _kind,
+      result = await _actions.saveSplit(
+        form,
+        myShare: _split.myShareFor(amount),
+        shares: _split.sharesFor(amount),
+        occurredAt: _occurredAt,
+        note: note,
+      );
+    } else {
+      result = await _actions.save(
+        form,
         amount: amount,
         occurredAt: _occurredAt,
-        walletFromId: walletFromId,
-        walletToId: _walletToId,
-        categoryId: _categoryId,
-        personId: personId,
-        fundId: fundId,
-        note: note.isEmpty ? null : note,
-        bill: bill,
+        note: note,
+        bill: _usesBill ? _bill.lines : const <BillLine>[],
+        editingId: widget.editing?.tx.id,
+        keepExistingBill: _billLoading,
       );
       // Giao dịch tự ghi đổi danh mục: nhớ người nhận này cho lần sau.
-      if (before.autoEventId != null &&
-          _categoryId != null &&
-          _categoryId != before.categoryId &&
+      final before = widget.editing?.tx;
+      if (before != null &&
+          before.autoEventId != null &&
+          form.categoryId != null &&
+          form.categoryId != before.categoryId &&
           mounted) {
         learned = await learnFromEdit(
           context,
           ref,
           transactionId: before.id,
-          categoryId: _categoryId!,
+          categoryId: form.categoryId!,
         );
       }
-    } else {
-      await repo.addTransaction(
-        kind: _kind,
-        amount: amount,
-        occurredAt: _occurredAt,
-        walletFromId: walletFromId,
-        walletToId: _walletToId,
-        categoryId: _categoryId,
-        personId: personId,
-        fundId: fundId,
-        note: note.isEmpty ? null : note,
-        bill: bill,
-      );
     }
 
     if (!mounted) return;
     Navigator.pop(context);
     if (learned != null && learned.appliedToOthers > 0) {
       final auto = ref.read(autoTrackRepositoryProvider);
-      final result = learned;
+      final applied = learned;
       showSnack(
         context,
-        'Đã cập nhật, phân loại thêm ${result.appliedToOthers} giao dịch của '
-        '${result.receiverName}',
+        'Đã cập nhật, phân loại thêm ${applied.appliedToOthers} giao dịch của '
+        '${applied.receiverName}',
         action: SnackBarAction(
           label: 'Hoàn tác',
-          onPressed: () => auto.undoLearn(result),
+          onPressed: () => auto.undoLearn(applied),
         ),
       );
       return;
     }
-    showSnack(
-      context,
-      _isEditing
-          ? 'Đã cập nhật'
-          : _isPaidByOther
-              ? 'Đã ghi ${formatVnd(amount)}, bạn nợ lại người trả dùm'
-              : 'Đã ghi giao dịch',
-    );
-  }
-
-  Future<void> _saveSplitBill(Repository repo, int total, String note) async {
-    final shares = _split.sharesFor(total);
-    final myShare = _split.myShareFor(total);
-
-    final ids = await repo.addSplitBill(
-      walletFromId: _walletFromId!,
-      myShare: myShare,
-      sharesByPerson: shares,
-      occurredAt: _occurredAt,
-      categoryId: _categoryId,
-      note: note.isEmpty ? null : note,
-    );
-
-    if (!mounted) return;
-    Navigator.pop(context);
-
-    final theirs = shares.values.fold<int>(0, (sum, v) => sum + v);
-    showSnack(
-      context,
-      myShare > 0
-          ? 'Đã ghi ${formatVnd(myShare)} tiền của bạn và '
-              '${formatVnd(theirs)} cho ${shares.length} người nợ lại'
-          : 'Đã ghi ${formatVnd(theirs)} cho ${shares.length} người nợ lại',
-      action: SnackBarAction(
-        label: 'Hoàn tác',
-        onPressed: () async {
-          for (final id in ids) {
-            await repo.softDeleteTransaction(id);
-          }
-        },
-      ),
-    );
+    _showResult(result);
   }
 
   @override
@@ -447,7 +335,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Sửa giao dịch' : 'Ghi giao dịch'),
         actions: [
-          if (_canSaveAsTemplate)
+          if (_form.canSaveAsTemplate)
             IconButton(
               icon: const Icon(Icons.bookmark_add_outlined),
               tooltip: 'Lưu làm mẫu',
@@ -477,7 +365,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
               children: [
-                _KindSelector(selected: _kind, onChanged: _changeKind),
+                KindSelector(selected: _kind, onChanged: _changeKind),
                 const SizedBox(height: 20),
                 // Có hoá đơn thì số tiền là tổng hoá đơn, hiện ở cuối phần
                 // hoá đơn bên dưới, nên không cho gõ tay nữa.
@@ -485,7 +373,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                   AmountField(
                     controller: _amountController,
                     autofocus: !_isEditing,
-                    label: _canSplit && _split.enabled
+                    label: _form.usesSplit
                         ? 'Tổng hoá đơn'
                         : 'Số tiền',
                     // Bảng chia tiền và dòng "khoản này lấy tiền từ đâu" đều
@@ -494,10 +382,17 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                ..._buildFieldsForKind(walletList),
-                if (_kind == TxKind.expense && !_isPaidByOther) ...[
+                ...txKindFields(
+                  form: _form,
+                  wallets: walletList,
+                  onWalletFrom: (v) => setState(() => _walletFromId = v),
+                  onWalletTo: (v) => setState(() => _walletToId = v),
+                  onCategory: (v) => setState(() => _categoryId = v),
+                  onPerson: (v) => setState(() => _personId = v),
+                ),
+                if (_form.showsFundPicker) ...[
                   const SizedBox(height: 12),
-                  _FundPicker(
+                  FundPicker(
                     value: _fundId,
                     onChanged: (v) => setState(() => _fundId = v),
                   ),
@@ -511,7 +406,12 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                 ],
                 if (_canPayByOther) ...[
                   const SizedBox(height: 8),
-                  _paidByOtherSection(),
+                  PaidByOtherSection(
+                    value: _paidByOther,
+                    onChanged: (v) => setState(() => _paidByOther = v),
+                    personId: _personId,
+                    onPersonChanged: (v) => setState(() => _personId = v),
+                  ),
                 ],
                 if (_canSplit) ...[
                   const SizedBox(height: 8),
@@ -522,19 +422,14 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                _impactNote(),
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  tileColor: Theme.of(context)
-                      .colorScheme
-                      .surfaceContainerHighest
-                      .withValues(alpha: 0.4),
-                  leading: const Icon(Icons.event),
-                  title: const Text('Thời điểm'),
-                  subtitle: Text(formatDateTime(_occurredAt)),
-                  trailing: const Icon(Icons.chevron_right),
+                ImpactNoteSection(
+                  form: _form,
+                  occurredAt: _occurredAt,
+                  total: _amount,
+                  myShareFor: _split.myShareFor,
+                ),
+                OccurredAtTile(
+                  occurredAt: _occurredAt,
                   onTap: _pickDateTime,
                 ),
                 const SizedBox(height: 12),
@@ -562,7 +457,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
             label: Text(
               _isEditing
                   ? 'Lưu thay đổi'
-                  : (_canSplit && _split.enabled)
+                  : _form.usesSplit
                       ? 'Ghi và chia tiền'
                       : 'Ghi lại',
             ),
@@ -572,133 +467,12 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     );
   }
 
-  /// Khoản chi này lấy tiền từ đâu. Chỉ hiện khi ghi mới một khoản làm tiền
-  /// ra khỏi ví trong tháng này — sửa khoản cũ thì số tự do đã tính nó rồi, còn
-  /// chi từ quỹ thì không đụng tới tiền tự do.
-  Widget _impactNote() {
-    const none = SizedBox.shrink();
-    if (_isEditing) return none;
-    final today = ref.watch(todayProvider);
-    if (monthKeyOf(_occurredAt) != monthKeyOf(today)) return none;
-
-    final total = _amount;
-    final Widget note;
-    if (_kind == TxKind.lend) {
-      note = SpendImpactNote(amount: 0, categoryId: null, outside: total);
-    } else if (_kind != TxKind.expense ||
-        (_fundId != null && !_isPaidByOther)) {
-      return none;
-    } else if (_canSplit && _split.enabled) {
-      final mine = _split.myShareFor(total);
-      note = SpendImpactNote(
-        amount: mine,
-        categoryId: _categoryId,
-        outside: total - mine,
-      );
-    } else {
-      note = SpendImpactNote(amount: total, categoryId: _categoryId);
-    }
-    return Padding(padding: const EdgeInsets.only(bottom: 12), child: note);
-  }
-
-  /// Công tắc "người khác trả dùm", bật lên thì chọn người mình nợ. Nằm cạnh
-  /// công tắc chia tiền vì cả hai đều trả lời câu "ai đã trả hoá đơn này".
-  Widget _paidByOtherSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _paidByOther,
-          onChanged: (v) => setState(() => _paidByOther = v),
-          title: const Text('Người khác trả dùm'),
-          subtitle: const Text(
-            'Ví không bị trừ, bạn nợ lại người đó. Chỉ ghi phần của bạn',
-          ),
-        ),
-        if (_paidByOther) ...[
-          const SizedBox(height: 4),
-          _PersonPicker(
-            label: 'Ai trả dùm',
-            value: _personId,
-            onChanged: (v) => setState(() => _personId = v),
-          ),
-        ],
-      ],
-    );
-  }
-
-  List<Widget> _buildFieldsForKind(List<WalletWithBalance> wallets) {
-    final widgets = <Widget>[];
-
-    if (_kind == TxKind.transfer) {
-      widgets.addAll([
-        _WalletDropdown(
-          label: 'Từ ví',
-          icon: Icons.logout,
-          wallets: wallets,
-          value: _walletFromId,
-          onChanged: (v) => setState(() => _walletFromId = v),
-        ),
-        const SizedBox(height: 12),
-        _WalletDropdown(
-          label: 'Đến ví',
-          icon: Icons.login,
-          wallets: wallets,
-          value: _walletToId,
-          excludeId: _fundId == null ? _walletFromId : null,
-          onChanged: (v) => setState(() => _walletToId = v),
-        ),
-      ]);
-    } else if (_kind.needsWalletFrom && !_isPaidByOther) {
-      // Người khác trả thì không có ví nào bị trừ, nên ẩn ô chọn ví.
-      widgets.add(_WalletDropdown(
-        label: 'Trừ vào ví',
-        icon: Icons.account_balance_wallet_outlined,
-        wallets: wallets,
-        value: _walletFromId,
-        onChanged: (v) => setState(() => _walletFromId = v),
-      ));
-    } else if (_kind.needsWalletTo) {
-      widgets.add(_WalletDropdown(
-        label: 'Cộng vào ví',
-        icon: Icons.account_balance_wallet_outlined,
-        wallets: wallets,
-        value: _walletToId,
-        onChanged: (v) => setState(() => _walletToId = v),
-      ));
-    }
-
-    if (_kind.needsCategory) {
-      widgets
-        ..add(const SizedBox(height: 12))
-        ..add(_CategoryPicker(
-          flow: _kind == TxKind.income ? 'income' : 'expense',
-          value: _categoryId,
-          onChanged: (v) => setState(() => _categoryId = v),
-        ));
-    }
-
-    if (_kind.needsPerson) {
-      widgets
-        ..add(const SizedBox(height: 12))
-        ..add(_PersonPicker(
-          value: _personId,
-          onChanged: (v) => setState(() => _personId = v),
-        ));
-    }
-
-    return widgets;
-  }
-
   Future<void> _confirmDelete() async {
     final editing = widget.editing!;
-    final groupId = editing.tx.groupId;
-    final repo = ref.read(repositoryProvider);
 
     // Giao dịch trả dùm được ghi thành một cặp; xoá lẻ một nửa sẽ để lại khoản
     // nợ mồ côi, nên phải hỏi rõ.
-    final groupCount = groupId == null ? 0 : await repo.countInGroup(groupId);
+    final groupCount = await _actions.groupSize(editing);
     if (!mounted) return;
 
     final ok = await confirmDialog(
@@ -711,370 +485,9 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     );
     if (!ok || !mounted) return;
 
-    if (groupCount > 1) {
-      final ids = await repo.softDeleteGroup(groupId!);
-      if (!mounted) return;
-      Navigator.pop(context);
-      showSnack(
-        context,
-        'Đã xoá $groupCount giao dịch',
-        action: SnackBarAction(
-          label: 'Hoàn tác',
-          onPressed: () => repo.restoreMany(ids),
-        ),
-      );
-    } else {
-      await repo.softDeleteTransaction(editing.tx.id);
-      if (!mounted) return;
-      Navigator.pop(context);
-      showSnack(
-        context,
-        'Đã xoá giao dịch',
-        action: SnackBarAction(
-          label: 'Hoàn tác',
-          onPressed: () => repo.restoreTransaction(editing.tx.id),
-        ),
-      );
-    }
-  }
-}
-
-/// Hàng chip chọn loại giao dịch, tách nhóm thường và nhóm nợ cho dễ nhìn.
-class _KindSelector extends StatelessWidget {
-  const _KindSelector({required this.selected, required this.onChanged});
-
-  final TxKind selected;
-  final ValueChanged<TxKind> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final kind in kQuickTxKinds)
-              _KindChip(
-                kind: kind,
-                selected: selected == kind,
-                onTap: () => onChanged(kind),
-              ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Vay mượn',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final kind in kDebtTxKinds)
-              _KindChip(
-                kind: kind,
-                selected: selected == kind,
-                onTap: () => onChanged(kind),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          selected.hint,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-        ),
-      ],
-    );
-  }
-}
-
-class _KindChip extends StatelessWidget {
-  const _KindChip({
-    required this.kind,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final TxKind kind;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      selected: selected,
-      onSelected: (_) => onTap(),
-      avatar: Icon(
-        kind.icon,
-        size: 18,
-        color: selected ? Theme.of(context).colorScheme.onSecondaryContainer : null,
-      ),
-      label: Text(kind.label),
-      showCheckmark: false,
-    );
-  }
-}
-
-class _WalletDropdown extends StatelessWidget {
-  const _WalletDropdown({
-    required this.label,
-    required this.icon,
-    required this.wallets,
-    required this.value,
-    required this.onChanged,
-    this.excludeId,
-  });
-
-  final String label;
-  final IconData icon;
-  final List<WalletWithBalance> wallets;
-  final int? value;
-  final int? excludeId;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final items =
-        wallets.where((w) => excludeId == null || w.id != excludeId).toList();
-    // Nếu ví đang chọn vừa bị loại khỏi danh sách (do trùng với ví bên kia),
-    // phải bỏ chọn, nếu không DropdownButton sẽ ném lỗi.
-    final safeValue = items.any((w) => w.id == value) ? value : null;
-
-    return DropdownButtonFormField<int>(
-      initialValue: safeValue,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
-      items: [
-        for (final w in items)
-          DropdownMenuItem(
-            value: w.id,
-            child: Row(
-              children: [
-                Icon(
-                  iconFor(w.wallet.iconKey, fallback: Icons.wallet),
-                  size: 18,
-                  color: w.wallet.colorValue == null
-                      ? null
-                      : Color(w.wallet.colorValue!),
-                ),
-                const SizedBox(width: 10),
-                Expanded(child: Text(w.name, overflow: TextOverflow.ellipsis)),
-                const SizedBox(width: 8),
-                Text(
-                  formatVndShort(w.balance),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-      onChanged: onChanged,
-    );
-  }
-}
-
-/// Chọn danh mục bằng lưới chip, kèm nút thêm mới ngay tại chỗ.
-class _CategoryPicker extends ConsumerWidget {
-  const _CategoryPicker({
-    required this.flow,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String flow;
-  final int? value;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final categories = ref.watch(
-      flow == 'income' ? incomeCategoriesProvider : expenseCategoriesProvider,
-    );
-
-    return categories.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (e, _) => Text('Lỗi: $e'),
-      data: (list) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Danh mục',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final c in list)
-                ChoiceChip(
-                  selected: value == c.id,
-                  onSelected: (_) => onChanged(c.id),
-                  showCheckmark: false,
-                  avatar: Icon(
-                    iconFor(c.iconKey, fallback: Icons.label_outline),
-                    size: 18,
-                    color: c.colorValue == null ? null : Color(c.colorValue!),
-                  ),
-                  label: Text(c.name),
-                ),
-              ActionChip(
-                avatar: const Icon(Icons.add, size: 18),
-                label: const Text('Thêm'),
-                onPressed: () async {
-                  final id = await Navigator.push<int>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CategoryEditScreen(flow: flow),
-                    ),
-                  );
-                  if (id != null) onChanged(id);
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Chọn quỹ để lấy tiền ra chi.
-///
-/// Chỉ hiện khi có quỹ. Chọn quỹ nào thì khoản chi vừa trừ ví vừa trừ quỹ đó —
-/// đúng như thực tế: tiền quỹ vốn đã nằm trong ví, giờ mới thực sự tiêu.
-class _FundPicker extends ConsumerWidget {
-  const _FundPicker({required this.value, required this.onChanged});
-
-  final int? value;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final funds = ref.watch(fundsProvider).valueOrNull ?? const <FundProgress>[];
-    if (funds.isEmpty) return const SizedBox.shrink();
-
-    final scheme = Theme.of(context).colorScheme;
-    final selected = funds.where((f) => f.id == value).firstOrNull;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Lấy từ quỹ', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ChoiceChip(
-              selected: value == null,
-              onSelected: (_) => onChanged(null),
-              showCheckmark: false,
-              label: const Text('Không'),
-            ),
-            for (final f in funds)
-              ChoiceChip(
-                selected: value == f.id,
-                onSelected: (_) => onChanged(f.id),
-                showCheckmark: false,
-                avatar: Icon(
-                  iconFor(f.fund.iconKey, fallback: Icons.savings),
-                  size: 18,
-                  color: f.fund.colorValue == null
-                      ? null
-                      : Color(f.fund.colorValue!),
-                ),
-                label: Text('${f.name} · ${formatVndShort(f.saved)}'),
-              ),
-          ],
-        ),
-        if (selected != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Trừ vào quỹ ${selected.name}, đang có '
-            '${formatVnd(selected.saved)} ở ${selected.walletName}.',
-            style: TextStyle(fontSize: 12, color: scheme.outline),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// Chọn người từ danh bạ. Thêm một lần, những lần sau chỉ việc chọn.
-class _PersonPicker extends ConsumerWidget {
-  const _PersonPicker({
-    required this.value,
-    required this.onChanged,
-    this.label = 'Với ai',
-  });
-
-  final String label;
-  final int? value;
-  final ValueChanged<int?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final people = ref.watch(peopleProvider);
-
-    return people.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (e, _) => Text('Lỗi: $e'),
-      data: (list) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          if (list.isEmpty)
-            Text(
-              'Danh bạ đang trống. Thêm một người để bắt đầu ghi nợ.',
-              style: TextStyle(color: Theme.of(context).colorScheme.outline),
-            ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final p in list)
-                ChoiceChip(
-                  selected: value == p.id,
-                  onSelected: (_) => onChanged(p.id),
-                  showCheckmark: false,
-                  avatar: InitialAvatar(
-                    name: p.name,
-                    size: 24,
-                    color:
-                        p.avatarColor == null ? null : Color(p.avatarColor!),
-                  ),
-                  label: Text(p.name),
-                ),
-              ActionChip(
-                avatar: const Icon(Icons.person_add_alt, size: 18),
-                label: const Text('Thêm người'),
-                onPressed: () async {
-                  final id = await Navigator.push<int>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PersonEditScreen(),
-                    ),
-                  );
-                  if (id != null) onChanged(id);
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    final result = await _actions.delete(editing, groupCount: groupCount);
+    if (!mounted) return;
+    Navigator.pop(context);
+    _showResult(result);
   }
 }

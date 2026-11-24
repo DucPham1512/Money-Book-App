@@ -32,8 +32,8 @@ class Categories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 60)();
 
-  /// 'expense' hoặc 'income' — một danh mục chỉ thuộc một chiều.
-  TextColumn get flow => text()();
+  /// Một danh mục chỉ thuộc một chiều. Lưu bằng tên enum: 'expense' / 'income'.
+  TextColumn get flow => textEnum<CategoryFlow>()();
 
   TextColumn get iconKey => text().nullable()();
   IntColumn get colorValue => integer().nullable()();
@@ -376,8 +376,9 @@ class ReceiverRules extends Table {
   TextColumn get matchType => text()();
   TextColumn get matchKey => text()();
 
-  /// expense | income — cùng một người có thể vừa nhận vừa gửi tiền.
-  TextColumn get flow => text()();
+  /// Chiều tiền, lưu bằng tên enum — cùng một người có thể vừa nhận vừa gửi
+  /// tiền.
+  TextColumn get flow => textEnum<CategoryFlow>()();
 
   /// Tên người nhận như lần gần nhất thấy, để hiển thị.
   TextColumn get displayName => text()();

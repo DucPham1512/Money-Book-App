@@ -207,7 +207,10 @@ class AutoTrackService {
     }
 
     final isExpense = txn.direction == TxDirection.expense;
-    final flow = isExpense ? 'expense' : 'income';
+    final flow = switch (txn.direction) {
+      TxDirection.expense => CategoryFlow.expense,
+      TxDirection.income => CategoryFlow.income,
+    };
     final receiverKey = normalizeReceiver(txn.receiver);
     final guess = categorizer.guess(receiverKey, flow);
 

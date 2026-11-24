@@ -11,6 +11,7 @@ import '../debts/debt_book_screen.dart';
 import '../stats/stats_screen.dart';
 import '../transactions/tx_list_screen.dart';
 import 'dashboard_screen.dart';
+import 'quick_action_sheet.dart';
 
 /// Khung điều hướng chính: 4 tab và một nút cộng ở giữa.
 class HomeShell extends ConsumerStatefulWidget {

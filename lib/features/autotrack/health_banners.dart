@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/db/repository.dart';
 import '../../core/format/dates.dart';
 import '../../core/format/money.dart';
 import '../../core/providers.dart';
