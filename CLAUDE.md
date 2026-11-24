@@ -257,3 +257,15 @@ trong một `db.transaction()`.
 
 Giao dịch định kỳ + nhắc nhở (bảng `recurring_templates` đã có sẵn), bộ lọc danh
 sách giao dịch, dark mode toggle thủ công, icon app riêng.
+
+Còn treo từ đợt dọn code (tháng 11/2026):
+
+- Chi từ quỹ có tính vào ngân sách (đã chốt), nhưng vì thế phần hạn mức còn
+  giữ giảm theo, nên tiền tự do TĂNG lên đúng khoản đó dù tiền tiêu được
+  không đổi. Chưa quyết có sửa không.
+- Nhập sao lưu kiểu gộp tạo trùng danh mục và người (chưa khớp theo tên).
+- `ImportResult.stats` đếm dòng trong file, không phải dòng đã nhập (quỹ,
+  ngân sách bị bỏ qua vẫn được đếm).
+- SQL của phần sao lưu chưa dời về `lib/core/db/`.
+- `recurringId` không được xuất ra file sao lưu.
+- Chưa có test bắt `readsFrom` thiếu bảng cho từng miền của Repository.

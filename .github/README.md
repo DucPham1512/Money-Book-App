@@ -1,4 +1,24 @@
-# Tự động build và phát hành
+# MoneyBook
+
+App Android quản lý chi tiêu cá nhân: offline, dùng riêng, mọi dữ liệu nằm
+trong máy (không server, không tài khoản). Ghi chi tiêu / thu nhập / chuyển
+ví / vay mượn, trả dùm, quỹ để dành, ngân sách theo danh mục, thống kê,
+sao lưu JSON và CSV.
+
+Flutter + Drift (SQLite) + Riverpod.
+
+```bash
+flutter pub get
+flutter test
+flutter analyze
+dart run build_runner build   # sau khi sửa lib/core/db/tables.dart
+flutter run -d <thiết bị>
+```
+
+Quy tắc nghiệp vụ, cấu trúc thư mục và các ràng buộc không được phá nằm ở
+[`CLAUDE.md`](../CLAUDE.md). Đọc trước khi sửa code.
+
+## Tự động build và phát hành
 
 | Cách | Chạy khi nào | Làm gì |
 |---|---|---|
@@ -6,7 +26,7 @@
 | `scripts/release.ps1` | Chạy tay trên máy — **cách phát hành chính** | Chạy test, build APK đã ký trên máy, kiểm chữ ký, gắn thẻ, đưa APK lên Releases |
 | `workflows/release.yml` | Chỉ khi bấm tay ở tab Actions — **dự phòng** | Như trên nhưng build trên GitHub (chậm) |
 
-## Phát hành một bản mới
+### Phát hành một bản mới
 
 ```powershell
 .\scripts\release.ps1 v1.2.0
@@ -24,13 +44,13 @@ không bao giờ ra số lùi — số lùi thì điện thoại từ chối cà
 APK nằm ở `build/release/QuanLyChiTieu-v1.2.0.apk` và ở tab **Releases** của
 repo. Tải về điện thoại rồi cài đè lên bản cũ — dữ liệu giữ nguyên.
 
-## Cài đặt một lần cho workflow dự phòng
+### Cài đặt một lần cho workflow dự phòng
 
 Script trên máy ký bằng `android/moneybook-release.jks` sẵn có, không cần gì
 thêm. Riêng workflow dự phòng cần chữ ký release. Keystore **không nằm trong repo** nên
 phải nạp qua GitHub Secrets.
 
-### 1. Chuyển keystore thành chuỗi base64
+#### 1. Chuyển keystore thành chuỗi base64
 
 Chạy trên máy, trong thư mục dự án:
 
@@ -40,7 +60,7 @@ Chạy trên máy, trong thư mục dự án:
 
 Chuỗi đã nằm trong clipboard.
 
-### 2. Thêm bốn secret
+#### 2. Thêm bốn secret
 
 Vào repo trên GitHub → **Settings** → **Secrets and variables** → **Actions** →
 **New repository secret**. Thêm lần lượt:
@@ -58,12 +78,12 @@ Xem lại `android/key.properties` nếu quên:
 Get-Content android\key.properties
 ```
 
-## Chạy workflow dự phòng
+### Chạy workflow dự phòng
 
 Tab **Actions** → **Phát hành** → **Run workflow**, gõ số phiên bản. Đừng
 đẩy thẻ bằng tay rồi chờ — workflow không còn chạy theo thẻ nữa.
 
-## Vì sao phải ký đúng keystore
+### Vì sao phải ký đúng keystore
 
 Android chỉ cho cài đè khi chữ ký trùng với bản đã cài. Ký bằng chữ ký khác thì
 điện thoại báo "App not installed", buộc phải gỡ app ra cài lại — **mất toàn bộ
@@ -72,7 +92,7 @@ dữ liệu chi tiêu**.
 Cả script lẫn workflow đều có bước kiểm tra chữ ký sau khi build: nếu vì lý do gì đó APK bị ký
 bằng debug key, nó dừng lại và báo lỗi thay vì phát hành một bản không cài được.
 
-## Giữ keystore ở đâu
+### Giữ keystore ở đâu
 
 Secrets trên GitHub chỉ là bản sao để build. File gốc
 `android/moneybook-release.jks` và `android/key.properties` vẫn phải được cất
