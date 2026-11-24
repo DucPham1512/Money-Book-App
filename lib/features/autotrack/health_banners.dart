@@ -110,9 +110,7 @@ class _PermissionBanner extends ConsumerWidget {
       icon: Icons.notifications_off_outlined,
       title: 'Mất quyền đọc thông báo',
       message:
-          'Giao dịch ngân hàng đang KHÔNG được tự ghi. Bật lại "Truy cập '
-          'thông báo" cho app. Nếu nút bị mờ: Cài đặt → Ứng dụng → app này → '
-          '⋮ → Cho phép cài đặt bị hạn chế.',
+          'Bật lại "Truy cập thông báo". Nút bị mờ thì vào Ứng dụng → app này → ⋮ → Cho phép cài đặt bị hạn chế.',
       actions: [
         TextButton(
           onPressed: () =>
@@ -135,9 +133,7 @@ class _FormatBanner extends StatelessWidget {
       icon: Icons.report_gmailerrorred_outlined,
       title: '${change.bankName} có thể đã đổi mẫu thông báo',
       message:
-          '${change.count} thông báo có số tiền nhưng app đọc không ra, nên '
-          'chưa được ghi. Chúng vẫn được giữ lại và sẽ tự ghi khi app được '
-          'cập nhật bộ đọc mới.',
+          '${change.count} thông báo chưa đọc được. Sẽ tự ghi khi app có bộ đọc mới.',
       actions: [
         TextButton(
           onPressed: () => Navigator.push(
@@ -162,10 +158,7 @@ class _BalanceBanner extends ConsumerWidget {
       icon: Icons.balance_outlined,
       title: '${m.walletName} lệch ${formatVndSigned(m.diff)}',
       message:
-          'Lúc ${formatDateTime(m.at)} ngân hàng báo số dư '
-          '${formatVnd(m.bankBalance)}, app tính ${formatVnd(m.appBalance)}. '
-          'Có thể một giao dịch bị lọt, bị ghi trùng, hoặc ngân hàng thu phí '
-          'không báo.',
+          'Ngân hàng ${formatVnd(m.bankBalance)}, app ${formatVnd(m.appBalance)} (${formatDateTime(m.at)}). Có thể sót hoặc trùng giao dịch.',
       actions: [
         TextButton(
           onPressed: () async {
@@ -199,7 +192,10 @@ class _BalanceBanner extends ConsumerWidget {
     // Khoản điều chỉnh ghi vào lúc này, sau thông báo, nên không làm số tại
     // lúc thông báo khớp lại; điều chỉnh rồi thì coi như đã xử lý.
     if (await repo.balanceOf(wallet.id) != wallet.balance) {
-      await dismissBalanceMismatch(ref.read(autoTrackRepositoryProvider), mismatch);
+      await dismissBalanceMismatch(
+        ref.read(autoTrackRepositoryProvider),
+        mismatch,
+      );
     }
     ref.read(autoTrackHealthTickProvider.notifier).state++;
   }
@@ -216,9 +212,7 @@ class _SilentBanner extends ConsumerWidget {
       icon: Icons.hourglass_empty,
       title: 'Không nhận được thông báo ngân hàng $days ngày',
       message:
-          'Tin cuối lúc ${formatDateTime(since)}. Nếu mấy ngày qua bạn vẫn có '
-          'giao dịch, có thể máy đã tắt app ngầm: bật Tự khởi chạy và đặt Pin '
-          '"Không giới hạn" cho app.',
+          'Tin cuối lúc ${formatDateTime(since)}. Có thể máy đã tắt app ngầm: bật Tự khởi chạy, Pin "Không giới hạn".',
       actions: [
         TextButton(
           onPressed: () async {

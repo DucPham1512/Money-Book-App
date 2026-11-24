@@ -36,9 +36,7 @@ class SplitBillSection extends ConsumerWidget {
             onChanged();
           },
           title: const Text('Trả dùm, chia tiền với người khác'),
-          subtitle: const Text(
-            'Bạn trả trước cả hoá đơn, những người kia nợ lại phần của họ',
-          ),
+          subtitle: const Text('Bạn trả, người khác nợ lại phần họ'),
         ),
         if (state.enabled) ...[
           const SizedBox(height: 8),
@@ -252,25 +250,23 @@ class _SplitSummary extends ConsumerWidget {
           if (state.mode == SplitMode.equal && shares.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Chia đều ${state.headcount} phần, mỗi người '
-              '${formatVnd(shares.values.first)}',
+              'Mỗi người ${formatVnd(shares.values.first)}',
               style: TextStyle(fontSize: 11.5, color: scheme.outline),
             ),
           ],
           if (over) ...[
             const SizedBox(height: 10),
             Text(
-              'Phần của mọi người đang vượt quá hoá đơn.',
+              'Phần mọi người vượt quá hoá đơn',
               style: TextStyle(color: scheme.error, fontSize: 12.5),
             ),
           ] else ...[
             const SizedBox(height: 10),
             Text(
               mine == 0
-                  ? 'Bạn không ăn phần nào nên khoản này không tính vào chi tiêu, '
-                      'chỉ ghi vào sổ nợ.'
-                  : 'Thống kê và ngân sách chỉ tính ${formatVnd(mine)} — '
-                      'phần bạn thực sự ăn. ${formatVnd(theirs)} còn lại vào sổ nợ.',
+                  ? 'Chỉ ghi vào sổ nợ, không tính chi tiêu'
+                  : '${formatVnd(mine)} vào chi tiêu · '
+                      '${formatVnd(theirs)} vào sổ nợ',
               style: TextStyle(color: scheme.outline, fontSize: 12.5),
             ),
           ],

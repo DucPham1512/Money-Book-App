@@ -44,8 +44,7 @@ class DebtBookScreen extends ConsumerWidget {
             return EmptyState(
               icon: Icons.handshake_outlined,
               title: 'Không có khoản nợ nào',
-              message: 'Ghi lại khi bạn cho mượn tiền, trả dùm bữa ăn, '
-                  'hoặc vay của ai đó.',
+              message: 'Cho mượn, vay hay trả dùm sẽ hiện ở đây',
               action: FilledButton.icon(
                 onPressed: () =>
                     openTxEditor(context, initialKind: TxKind.lend),
@@ -57,8 +56,10 @@ class DebtBookScreen extends ConsumerWidget {
 
           final theyOwe = list.where((d) => d.theyOweMe).toList();
           final iOwe = list.where((d) => d.iOweThem).toList();
-          final theyOweTotal =
-              theyOwe.fold<int>(0, (sum, d) => sum + d.absAmount);
+          final theyOweTotal = theyOwe.fold<int>(
+            0,
+            (sum, d) => sum + d.absAmount,
+          );
           final iOweTotal = iOwe.fold<int>(0, (sum, d) => sum + d.absAmount);
 
           return ListView(
@@ -120,8 +121,8 @@ class _NetCard extends StatelessWidget {
               settled
                   ? 'Không ai nợ ai'
                   : net > 0
-                      ? 'Bạn đang cho nợ'
-                      : 'Bạn đang nợ',
+                  ? 'Bạn đang cho nợ'
+                  : 'Bạn đang nợ',
               style: TextStyle(color: scheme.outline, fontSize: 13),
             ),
             const SizedBox(height: 6),
@@ -133,16 +134,15 @@ class _NetCard extends StatelessWidget {
                 color: settled
                     ? scheme.onSurface
                     : net > 0
-                        ? incomeColor(context)
-                        : expenseColor(context),
+                    ? incomeColor(context)
+                    : expenseColor(context),
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
             if (theyOweTotal > 0 && iOweTotal > 0) ...[
               const SizedBox(height: 6),
               Text(
-                'Đã trừ ${formatVnd(theyOweTotal)} người khác nợ bạn '
-                'với ${formatVnd(iOweTotal)} bạn nợ người khác',
+                'Họ nợ bạn ${formatVnd(theyOweTotal)} · bạn nợ ${formatVnd(iOweTotal)}',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: scheme.outline, fontSize: 12),
               ),
@@ -172,10 +172,9 @@ class _GroupHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
         Text(
@@ -249,11 +248,8 @@ class _DebtTile extends StatelessWidget {
             icon: const Icon(Icons.done_all),
             tooltip: theyOweMe ? 'Thu nợ' : 'Trả nợ',
             visualDensity: VisualDensity.compact,
-            onPressed: () => showSettleDebtSheet(
-              context,
-              person: person,
-              net: summary.net,
-            ),
+            onPressed: () =>
+                showSettleDebtSheet(context, person: person, net: summary.net),
           ),
         ],
       ),

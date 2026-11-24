@@ -26,7 +26,19 @@ class BudgetScreen extends ConsumerWidget {
         : null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ngân sách')),
+      appBar: AppBar(
+        title: const Text('Ngân sách'),
+        actions: const [
+          InfoButton(
+            title: 'Ngân sách tính gì',
+            points: [
+              'Chỉ tính khoản chi của chính bạn.',
+              'Tiền trả dùm người khác vào sổ nợ, không làm vượt hạn mức.',
+              'Ví còn ít hơn hạn mức thì mức mỗi ngày tính theo tiền thật.',
+            ],
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showBudgetEditor(context),
         icon: const Icon(Icons.add),
@@ -40,8 +52,7 @@ class BudgetScreen extends ConsumerWidget {
             return EmptyState(
               icon: Icons.savings_outlined,
               title: 'Chưa đặt hạn mức nào',
-              message: 'Đặt hạn mức tháng cho từng danh mục để biết khi nào '
-                  'mình sắp tiêu quá tay.',
+              message: 'Biết sớm khi sắp tiêu quá tay',
               action: FilledButton.icon(
                 onPressed: () => showBudgetEditor(context),
                 icon: const Icon(Icons.add),
@@ -81,15 +92,6 @@ class BudgetScreen extends ConsumerWidget {
                 BudgetCard(progress: b),
                 const SizedBox(height: 12),
               ],
-              const SizedBox(height: 8),
-              Text(
-                'Chỉ những khoản bạn thực sự chi mới tính vào đây. Tiền trả '
-                'dùm cho người khác nằm ở sổ nợ nên không làm vượt hạn mức.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
             ],
           );
         },
@@ -243,10 +245,8 @@ class _OverallCard extends StatelessWidget {
                                 '${formatVnd(overall.remainingDailyAllowance)}'
                                 '/ngày'
                           : overall.remaining > 0
-                          ? 'Còn ${overall.daysRemaining} ngày, ví đã hết '
-                                'tiền tiêu được'
-                          : 'Còn ${overall.daysRemaining} ngày, đã hết '
-                                'hạn mức',
+                          ? 'Còn ${overall.daysRemaining} ngày · ví hết tiền'
+                          : 'Còn ${overall.daysRemaining} ngày · hết hạn mức',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -260,9 +260,7 @@ class _OverallCard extends StatelessWidget {
               if (limitedByCash) ...[
                 const SizedBox(height: 10),
                 Text(
-                  'Ví chỉ còn ${formatVnd(cash!)} tiêu được, ít '
-                  'hơn ${formatVnd(reserved)} các hạn mức còn giữ. Mức mỗi '
-                  'ngày ở trên đã tính theo tiền thật.',
+                  'Ví chỉ còn ${formatVnd(cash!)}, ít hơn hạn mức còn lại',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,

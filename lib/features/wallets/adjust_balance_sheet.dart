@@ -102,10 +102,7 @@ class _AdjustBalanceSheetState extends ConsumerState<_AdjustBalanceSheet> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 4),
-            Text(
-              widget.wallet.name,
-              style: TextStyle(color: scheme.outline),
-            ),
+            Text(widget.wallet.name, style: TextStyle(color: scheme.outline)),
             const SizedBox(height: 20),
             Row(
               children: [
@@ -155,8 +152,7 @@ class _AdjustBalanceSheetState extends ConsumerState<_AdjustBalanceSheet> {
             Text(
               _delta == 0
                   ? 'Không có gì để ghi lại.'
-                  : 'Một giao dịch "Điều chỉnh số dư" sẽ được ghi vào lịch sử '
-                      'để sổ sách không bị lệch.',
+                  : 'Ghi một giao dịch "Điều chỉnh số dư" vào lịch sử',
               style: TextStyle(fontSize: 12.5, color: scheme.outline),
             ),
             const SizedBox(height: 20),

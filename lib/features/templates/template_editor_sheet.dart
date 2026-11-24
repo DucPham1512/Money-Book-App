@@ -93,9 +93,7 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
     final ok = await confirmDialog(
       context,
       title: 'Xoá mẫu?',
-      message:
-          'Xoá mẫu "${t.label}". Các khoản đã ghi từ mẫu này vẫn còn '
-          'nguyên.',
+      message: 'Các khoản đã ghi từ "${t.label}" vẫn giữ nguyên.',
     );
     if (!ok || !mounted) return;
     await ref.read(repositoryProvider).deleteTemplate(t.id);

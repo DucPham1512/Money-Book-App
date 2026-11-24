@@ -8,10 +8,7 @@ import '../../core/icons.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
 
-Future<void> showBudgetEditor(
-  BuildContext context, {
-  BudgetProgress? editing,
-}) {
+Future<void> showBudgetEditor(BuildContext context, {BudgetProgress? editing}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -91,8 +88,8 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
     final ok = await confirmDialog(
       context,
       title: 'Xoá hạn mức?',
-      message: 'Xoá hạn mức của "${widget.editing!.categoryName}". '
-          'Các giao dịch vẫn còn nguyên.',
+      message:
+          'Giao dịch của "${widget.editing!.categoryName}" vẫn giữ nguyên.',
     );
     if (!ok || !mounted) return;
 
@@ -169,8 +166,9 @@ class _BudgetEditorState extends ConsumerState<_BudgetEditor> {
                       avatar: Icon(
                         iconFor(c.iconKey, fallback: Icons.label_outline),
                         size: 18,
-                        color:
-                            c.colorValue == null ? null : Color(c.colorValue!),
+                        color: c.colorValue == null
+                            ? null
+                            : Color(c.colorValue!),
                       ),
                       label: Text(c.name),
                     ),

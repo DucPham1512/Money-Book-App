@@ -57,7 +57,19 @@ class TemplateScreen extends ConsumerWidget {
     final templates = ref.watch(templatesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mẫu chi tiêu')),
+      appBar: AppBar(
+        title: const Text('Mẫu chi tiêu'),
+        actions: const [
+          InfoButton(
+            title: 'Mẫu chi tiêu',
+            points: [
+              'Đủ số tiền, ví và danh mục: bấm là ghi luôn.',
+              'Thiếu trường nào thì mở màn ghi đã điền sẵn.',
+              'Giữ và kéo để đổi thứ tự.',
+            ],
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showTemplateEditor(context),
         icon: const Icon(Icons.add),
@@ -71,10 +83,7 @@ class TemplateScreen extends ConsumerWidget {
             return EmptyState(
               icon: Icons.bolt_outlined,
               title: 'Chưa có mẫu nào',
-              message:
-                  'Mẫu là khoản chi hay lặp lại: cà phê sáng, gửi xe, ăn '
-                  'trưa. Lưu một lần, sau đó bấm một chạm ở màn Tổng quan là '
-                  'ghi xong, thời điểm lấy đúng lúc bấm.',
+              message: 'Ghi khoản chi hay lặp lại bằng một chạm',
               action: FilledButton.icon(
                 onPressed: () => showTemplateEditor(context),
                 icon: const Icon(Icons.add),
@@ -92,18 +101,6 @@ class TemplateScreen extends ConsumerWidget {
               ids.insert(to, ids.removeAt(from));
               ref.read(repositoryProvider).reorderTemplates(ids);
             },
-            footer: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Text(
-                'Mẫu đủ số tiền, ví và danh mục thì bấm là ghi luôn. Thiếu '
-                'trường nào thì bấm vào sẽ mở màn ghi đã điền sẵn phần còn '
-                'lại. Giữ và kéo để đổi thứ tự.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
-            ),
             itemBuilder: (context, i) {
               final t = list[i];
               return _TemplateTile(key: ValueKey(t.id), template: t);

@@ -21,7 +21,10 @@ class CategorizeRulesScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Phân loại tự động'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Người nhận'), Tab(text: 'Từ khoá')],
+            tabs: [
+              Tab(text: 'Người nhận'),
+              Tab(text: 'Từ khoá'),
+            ],
           ),
         ),
         body: const TabBarView(children: [_RulesTab(), _KeywordsTab()]),
@@ -44,17 +47,16 @@ class _RulesTabState extends ConsumerState<_RulesTab> {
   Widget build(BuildContext context) {
     final rules = ref.watch(receiverRulesProvider);
     final similarOn =
-        ref.watch(autoTrackFlagProvider(AutoTrackRepository.kSimilarKey)).value ??
+        ref
+            .watch(autoTrackFlagProvider(AutoTrackRepository.kSimilarKey))
+            .value ??
         true;
     final scheme = Theme.of(context).colorScheme;
 
     return rules.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => EmptyState(
-        icon: Icons.error_outline,
-        title: 'Lỗi',
-        message: '$e',
-      ),
+      error: (e, _) =>
+          EmptyState(icon: Icons.error_outline, title: 'Lỗi', message: '$e'),
       data: (all) {
         final list = all
             .where(
@@ -70,10 +72,7 @@ class _RulesTabState extends ConsumerState<_RulesTab> {
           children: [
             SwitchListTile(
               title: const Text('Đoán theo tên gần giống'),
-              subtitle: const Text(
-                '"Phúc Long CN Q1" theo quy tắc của "Phúc Long CN Q3". '
-                'Khoản đoán luôn chờ bạn xác nhận.',
-              ),
+              subtitle: const Text('"Phúc Long CN Q1" theo "Phúc Long CN Q3"'),
               value: similarOn,
               onChanged: (v) => ref
                   .read(autoTrackRepositoryProvider)
@@ -96,8 +95,7 @@ class _RulesTabState extends ConsumerState<_RulesTab> {
                 icon: Icons.school_outlined,
                 title: 'Chưa học được người nhận nào',
                 message:
-                    'Phân loại giao dịch tự ghi ở màn "Phân loại giao dịch", '
-                    'app sẽ nhớ người nhận đó ở đây.',
+                    'Phân loại một giao dịch tự ghi, app sẽ nhớ người nhận',
               ),
             for (final r in list)
               Dismissible(
@@ -107,7 +105,10 @@ class _RulesTabState extends ConsumerState<_RulesTab> {
                   color: scheme.errorContainer,
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 20),
-                  child: Icon(Icons.delete_outline, color: scheme.onErrorContainer),
+                  child: Icon(
+                    Icons.delete_outline,
+                    color: scheme.onErrorContainer,
+                  ),
                 ),
                 onDismissed: (_) async {
                   final auto = ref.read(autoTrackRepositoryProvider);
@@ -163,8 +164,7 @@ class _RulesTabState extends ConsumerState<_RulesTab> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Bấm để đổi danh mục, vuốt sang trái để quên. Đổi ở đây chỉ '
-                  'áp cho giao dịch từ nay về sau.',
+                  'Bấm để đổi danh mục, vuốt trái để quên',
                   style: TextStyle(color: scheme.outline, fontSize: 12.5),
                 ),
               ),
@@ -182,18 +182,17 @@ class _KeywordsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final keywords = ref.watch(categoryKeywordsProvider);
     final on =
-        ref.watch(autoTrackFlagProvider(AutoTrackRepository.kKeywordsKey)).value ??
+        ref
+            .watch(autoTrackFlagProvider(AutoTrackRepository.kKeywordsKey))
+            .value ??
         true;
     final scheme = Theme.of(context).colorScheme;
     final auto = ref.read(autoTrackRepositoryProvider);
 
     return keywords.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => EmptyState(
-        icon: Icons.error_outline,
-        title: 'Lỗi',
-        message: '$e',
-      ),
+      error: (e, _) =>
+          EmptyState(icon: Icons.error_outline, title: 'Lỗi', message: '$e'),
       data: (list) {
         // Gom theo danh mục.
         final byCategory = <String, List<KeywordView>>{};
@@ -205,10 +204,7 @@ class _KeywordsTab extends ConsumerWidget {
           children: [
             SwitchListTile(
               title: const Text('Đoán theo từ khoá'),
-              subtitle: const Text(
-                'Người nhận lạ có chữ "CAFE" thì đoán Ăn uống. Khoản đoán luôn '
-                'chờ bạn xác nhận.',
-              ),
+              subtitle: const Text('Có chữ "CAFE" thì đoán Ăn uống'),
               value: on,
               onChanged: (v) =>
                   auto.setFlag(AutoTrackRepository.kKeywordsKey, v),
@@ -251,8 +247,7 @@ class _KeywordsTab extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Bấm để tạm tắt một từ khoá, bấm × để xoá. Từ khoá khớp nguyên '
-                'chữ: "BE" không khớp trong "BEP".',
+                'Bấm để tắt, bấm × để xoá. Khớp nguyên chữ',
                 style: TextStyle(color: scheme.outline, fontSize: 12.5),
               ),
             ),
@@ -324,7 +319,7 @@ class _KeywordsTab extends ConsumerWidget {
         .read(autoTrackRepositoryProvider)
         .addKeyword(word, categoryId);
     if (!ok && context.mounted) {
-      showSnack(context, 'Từ khoá này toàn chữ ngân hàng tự thêm, không dùng được');
+      showSnack(context, 'Từ khoá này không dùng được');
     }
   }
 }

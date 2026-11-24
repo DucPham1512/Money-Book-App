@@ -23,7 +23,18 @@ class FundScreen extends ConsumerWidget {
     final funds = ref.watch(fundsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Quỹ')),
+      appBar: AppBar(
+        title: const Text('Quỹ'),
+        actions: const [
+          InfoButton(
+            title: 'Quỹ là gì',
+            points: [
+              'Tiền để dành cho khoản biết trước: tiền nhà, tiền điện.',
+              'Tiền quỹ vẫn nằm trong ví, chỉ không tính vào tiền tiêu được.',
+            ],
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showFundEditor(context),
         icon: const Icon(Icons.add),
@@ -37,9 +48,7 @@ class FundScreen extends ConsumerWidget {
             return EmptyState(
               icon: Icons.savings_outlined,
               title: 'Chưa có quỹ nào',
-              message: 'Quỹ là tiền để dành cho khoản đã biết trước: tiền nhà '
-                  'tháng sau, tiền điện, trả nợ ví trả sau. Tiền quỹ không '
-                  'tính vào phần tiêu hằng ngày.',
+              message: 'Để dành cho tiền nhà, tiền điện, trả nợ',
               action: FilledButton.icon(
                 onPressed: () => showFundEditor(context),
                 icon: const Icon(Icons.add),
@@ -59,16 +68,6 @@ class FundScreen extends ConsumerWidget {
                 _FundCard(progress: f),
                 const SizedBox(height: 12),
               ],
-              const SizedBox(height: 8),
-              Text(
-                'Tiền quỹ vẫn nằm trong ví của bạn, chỉ là đã có chỗ đến nên '
-                'không được tính vào phần tiêu được. Bấm vào thẻ tổng tài sản '
-                'ở màn Tổng quan để xem cả hai con số.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
             ],
           );
         },

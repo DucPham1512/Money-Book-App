@@ -64,16 +64,26 @@ class _AutoTrackSettingsScreenState
     final apps = ref.watch(trackedAppsProvider).value ?? const <TrackedApp>[];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tự động ghi')),
+      appBar: AppBar(
+        title: const Text('Tự động ghi'),
+        actions: const [
+          InfoButton(
+            title: 'Tự động ghi',
+            points: [
+              'Đọc thông báo biến động số dư và ghi thành giao dịch.',
+              'Mọi thứ xử lý trong máy, không gửi đi đâu.',
+              'Xiaomi: bật Tự khởi chạy, Pin "Không giới hạn" và khoá app '
+                  'trong đa nhiệm để app không bị tắt ngầm.',
+            ],
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           SwitchListTile(
             title: const Text('Ghi từ thông báo ngân hàng'),
-            subtitle: const Text(
-              'Đọc thông báo biến động số dư và ghi thành giao dịch. '
-              'Mọi thứ xử lý trong máy, không gửi đi đâu.',
-            ),
+            subtitle: const Text('BIDV, Eximbank'),
             value: enabled,
             onChanged: (v) async {
               await ref.read(autoTrackRepositoryProvider).setEnabled(v);
@@ -95,17 +105,14 @@ class _AutoTrackSettingsScreenState
             ListTile(
               leading: const Icon(Icons.add),
               title: const Text('Ghi mẫu một app'),
-              subtitle: const Text(
-                'Lưu thông báo của app đó trong 7 ngày, không ghi giao dịch. '
-                'Dùng để viết bộ đọc cho ngân hàng chưa hỗ trợ.',
-              ),
+              subtitle: const Text('Cho ngân hàng chưa hỗ trợ'),
               onTap: _addCapture,
             ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.label_important_outline),
               title: const Text('Phân loại giao dịch'),
-              subtitle: const Text('Hàng chờ: chưa phân loại và cần xem lại'),
+              subtitle: const Text('Chưa phân loại, cần xem lại'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
@@ -127,7 +134,7 @@ class _AutoTrackSettingsScreenState
             ListTile(
               leading: const Icon(Icons.receipt_outlined),
               title: const Text('Nhật ký thông báo'),
-              subtitle: const Text('Tin đã nhận và vì sao có / không ghi'),
+              subtitle: const Text('Thông báo đã nhận'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
@@ -176,10 +183,6 @@ class _ListenerStatus extends ConsumerWidget {
           ? ListTile(
               leading: Icon(Icons.verified_outlined, color: scheme.primary),
               title: const Text('Đã có quyền đọc thông báo'),
-              subtitle: const Text(
-                'Trên Xiaomi: bật Tự khởi chạy, đặt Pin thành "Không giới '
-                'hạn" và khoá app trong đa nhiệm để không bị tắt ngầm.',
-              ),
             )
           : Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -194,7 +197,7 @@ class _ListenerStatus extends ConsumerWidget {
                   style: TextStyle(color: scheme.onErrorContainer),
                 ),
                 subtitle: Text(
-                  'Bật "Quản Lý Chi Tiêu" trong mục Truy cập thông báo.',
+                  'Bật trong Truy cập thông báo',
                   style: TextStyle(color: scheme.onErrorContainer),
                 ),
                 trailing: FilledButton(

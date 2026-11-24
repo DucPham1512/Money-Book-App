@@ -28,9 +28,7 @@ class PaidByOtherSection extends StatelessWidget {
           value: value,
           onChanged: onChanged,
           title: const Text('Người khác trả dùm'),
-          subtitle: const Text(
-            'Ví không bị trừ, bạn nợ lại người đó. Chỉ ghi phần của bạn',
-          ),
+          subtitle: const Text('Ví không bị trừ, bạn nợ lại họ'),
         ),
         if (value) ...[
           const SizedBox(height: 4),

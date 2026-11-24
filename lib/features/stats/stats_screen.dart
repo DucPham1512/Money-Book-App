@@ -5,6 +5,7 @@ import '../../core/format/dates.dart';
 import '../../core/format/money.dart';
 import '../../core/providers.dart';
 import '../../core/theme.dart';
+import '../../core/widgets.dart';
 import '../budgets/budget_screen.dart';
 import 'budget_summary.dart';
 import 'category_breakdown.dart';
@@ -24,6 +25,13 @@ class StatsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Thống kê'),
         actions: [
+          const InfoButton(
+            title: 'Thống kê tính gì',
+            points: [
+              'Chỉ tính thu nhập và chi tiêu.',
+              'Chuyển ví, vay mượn và điều chỉnh số dư không tính.',
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.savings_outlined),
             tooltip: 'Ngân sách',
@@ -47,15 +55,6 @@ class StatsScreen extends ConsumerWidget {
           MonthComparison(monthKey: monthKey),
           const SizedBox(height: 20),
           TopExpenses(monthKey: monthKey),
-          const SizedBox(height: 16),
-          Text(
-            'Thống kê chỉ tính thu nhập và chi tiêu. Chuyển tiền giữa các ví, '
-            'vay mượn và điều chỉnh số dư không được tính vào đây.',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.outline,
-            ),
-          ),
         ],
       ),
     );

@@ -47,8 +47,9 @@ class _FundTransferSheetState extends ConsumerState<_FundTransferSheet> {
   void initState() {
     super.initState();
     // Nạp thì gợi ý sẵn phần còn thiếu, đỡ phải tính.
-    final suggested =
-        widget.withdraw ? widget.progress.saved : widget.progress.missing;
+    final suggested = widget.withdraw
+        ? widget.progress.saved
+        : widget.progress.missing;
     _amount = suggested ?? 0;
     _controller = TextEditingController(
       text: _amount > 0 ? groupDigits(_amount) : '',
@@ -182,8 +183,9 @@ class _FundTransferSheetState extends ConsumerState<_FundTransferSheet> {
                   isExpanded: true,
                   decoration: InputDecoration(
                     labelText: widget.withdraw ? 'Trả về ví' : 'Lấy từ ví',
-                    prefixIcon:
-                        const Icon(Icons.account_balance_wallet_outlined),
+                    prefixIcon: const Icon(
+                      Icons.account_balance_wallet_outlined,
+                    ),
                   ),
                   items: [
                     for (final w in items)
@@ -234,16 +236,11 @@ class _FundTransferSheetState extends ConsumerState<_FundTransferSheet> {
                 _otherWalletId == widget.progress.fund.walletId
                     // Cùng một ví: không có tiền nào di chuyển, chỉ đổi nhãn.
                     ? (widget.withdraw
-                        ? '${formatVnd(_amount)} vẫn nằm ở $fundWalletName, '
-                            'chỉ bỏ nhãn quỹ. Số này quay lại phần tiêu được.'
-                        : '${formatVnd(_amount)} đang có sẵn ở $fundWalletName '
-                            'được dành cho quỹ. Số dư ví không đổi, nhưng số '
-                            'này không còn tính vào tiền tiêu được.')
+                          ? '${formatVnd(_amount)} vẫn ở $fundWalletName, quay lại tiền tiêu được'
+                          : 'Dành ${formatVnd(_amount)} ở $fundWalletName cho quỹ, số dư ví không đổi')
                     : widget.withdraw
-                        ? 'Chuyển ${formatVnd(_amount)} từ $fundWalletName về '
-                            'ví chi tiêu. Tiền quay lại phần tiêu được.'
-                        : 'Chuyển ${formatVnd(_amount)} sang $fundWalletName. '
-                            'Số này sẽ không còn tính vào tiền tiêu được.',
+                    ? 'Chuyển ${formatVnd(_amount)} từ $fundWalletName về ví chi tiêu'
+                    : 'Chuyển ${formatVnd(_amount)} sang $fundWalletName',
                 style: TextStyle(
                   fontSize: 12.5,
                   color: scheme.onSurfaceVariant,

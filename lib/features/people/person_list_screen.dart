@@ -16,9 +16,7 @@ class PersonListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Dùng sổ nợ thay vì danh sách người thuần, để mỗi dòng hiện luôn dư nợ.
-    final debts = ref.watch(
-      _peopleWithDebtProvider,
-    );
+    final debts = ref.watch(_peopleWithDebtProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Danh bạ')),
@@ -38,8 +36,7 @@ class PersonListScreen extends ConsumerWidget {
             return EmptyState(
               icon: Icons.people_outline,
               title: 'Danh bạ đang trống',
-              message: 'Thêm những người bạn hay vay mượn hoặc đi ăn chung. '
-                  'Thêm một lần, sau đó chỉ cần chọn tên.',
+              message: 'Người hay vay mượn hoặc đi ăn chung',
               action: FilledButton.icon(
                 onPressed: () => Navigator.push(
                   context,
@@ -87,14 +84,14 @@ class _PersonTile extends ConsumerWidget {
         summary.net == 0
             ? 'Không nợ nần gì'
             : summary.theyOweMe
-                ? 'Nợ bạn ${formatVnd(summary.absAmount)}'
-                : 'Bạn nợ ${formatVnd(summary.absAmount)}',
+            ? 'Nợ bạn ${formatVnd(summary.absAmount)}'
+            : 'Bạn nợ ${formatVnd(summary.absAmount)}',
         style: TextStyle(
           color: summary.net == 0
               ? scheme.outline
               : summary.theyOweMe
-                  ? incomeColor(context)
-                  : expenseColor(context),
+              ? incomeColor(context)
+              : expenseColor(context),
         ),
       ),
       trailing: Row(
@@ -136,10 +133,8 @@ class _PersonTile extends ConsumerWidget {
         context,
         title: 'Chưa xoá được',
         message: summary.theyOweMe
-            ? '${person.name} còn nợ bạn ${formatVnd(summary.absAmount)}.\n\n'
-                'Hãy tất toán khoản nợ này trước khi xoá.'
-            : 'Bạn còn nợ ${person.name} ${formatVnd(summary.absAmount)}.\n\n'
-                'Hãy tất toán khoản nợ này trước khi xoá.',
+            ? '${person.name} còn nợ bạn ${formatVnd(summary.absAmount)}. Tất toán trước khi xoá.'
+            : 'Bạn còn nợ ${person.name} ${formatVnd(summary.absAmount)}. Tất toán trước khi xoá.',
         confirmLabel: 'Đã hiểu',
         cancelLabel: 'Đóng',
         destructive: false,
@@ -154,9 +149,8 @@ class _PersonTile extends ConsumerWidget {
       await confirmDialog(
         context,
         title: 'Chưa xoá được',
-        message: '${person.name} đã sạch nợ nhưng vẫn còn $count giao dịch '
-            'trong lịch sử. Xoá đi sẽ làm hỏng các giao dịch đó.\n\n'
-            'Bạn có thể để nguyên — người đã sạch nợ không hiện trong sổ nợ.',
+        message:
+            '${person.name} còn $count giao dịch trong lịch sử, không xoá được. Người đã sạch nợ tự ẩn khỏi sổ nợ.',
         confirmLabel: 'Đã hiểu',
         cancelLabel: 'Đóng',
         destructive: false,
