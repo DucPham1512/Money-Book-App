@@ -6,27 +6,7 @@ import 'package:moneybook/core/db/repository.dart';
 import 'package:moneybook/core/domain/tx_kind.dart';
 import 'package:moneybook/core/domain/daily_totals.dart';
 
-BudgetProgress makeProgress({
-  int categoryId = 1,
-  required int limit,
-  required int spent,
-  required int daysElapsed,
-  int daysInMonth = 30,
-  int? spentToday,
-}) {
-  return BudgetProgress(
-    budgetId: categoryId,
-    categoryId: categoryId,
-    categoryName: 'Ăn uống',
-    limitAmount: limit,
-    spent: spent,
-    isRecurring: true,
-    monthKey: 202609,
-    daysInMonth: daysInMonth,
-    daysElapsed: daysElapsed,
-    spentToday: spentToday,
-  );
-}
+import 'helpers/builders.dart';
 
 void main() {
   group('hạn mức bị chặn bởi tiền thật', () {

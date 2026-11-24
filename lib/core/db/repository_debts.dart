@@ -5,6 +5,11 @@ part of 'repository.dart';
 extension DebtQueries on Repository {
   /// Công nợ theo từng người. Chỉ là một phép SUM nhờ cột debt_delta đã lưu
   /// sẵn dấu lúc ghi giao dịch.
+  ///
+  /// Điều kiện lưu trữ trông như bị đảo nhưng là cố ý: mặc định (chỉ người
+  /// còn nợ) thì KHÔNG lọc người đã lưu trữ, vì người bị ẩn mà còn nợ vẫn
+  /// phải hiện ra; khi [includeSettled] thì liệt kê cả người hết nợ, nên mới
+  /// bỏ những người đã lưu trữ.
   Stream<List<DebtSummary>> watchDebts({bool includeSettled = false}) {
     final sql =
         '''

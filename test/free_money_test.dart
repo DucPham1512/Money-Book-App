@@ -6,26 +6,7 @@ import 'package:moneybook/core/db/repository.dart';
 import 'package:moneybook/core/domain/free_money.dart';
 import 'package:moneybook/core/domain/tx_kind.dart';
 
-BudgetProgress budget({
-  int id = 1,
-  String name = 'Ăn uống',
-  required int limit,
-  required int spent,
-  int? spentToday,
-}) {
-  return BudgetProgress(
-    budgetId: id,
-    categoryId: id,
-    categoryName: name,
-    limitAmount: limit,
-    spent: spent,
-    isRecurring: true,
-    monthKey: 202609,
-    daysInMonth: 30,
-    daysElapsed: 10,
-    spentToday: spentToday,
-  );
-}
+import 'helpers/builders.dart';
 
 FreeMoney money({
   required int spendable,
@@ -60,14 +41,14 @@ void main() {
     test('tiền ngân sách những ngày trước tiêu không hết thành tiền tự do', () {
       // Hạn mức 3tr = 100k/ngày, hôm nay ngày 10. 9 ngày trước chỉ tiêu 600k
       // thay vì 900k: dư 300k.
-      final b = budget(limit: 3000000, spent: 600000, spentToday: 0);
+      final b = makeProgress(limit: 3000000, spent: 600000, spentToday: 0);
       final m = money(spendable: 4000000, budgets: [b]);
       expect(m.reserved, 2100000);
       expect(m.free, 1900000, reason: '300k dư cộng vào tiền tự do');
     });
 
     test('chi vượt phần còn giữ thì lấy từ tiền tự do', () {
-      final b = budget(limit: 3000000, spent: 600000, spentToday: 0);
+      final b = makeProgress(limit: 3000000, spent: 600000, spentToday: 0);
       final m = money(spendable: 4000000, budgets: [b]);
       final i = m.preview(amount: 2200000, budget: b);
       expect(i.fromBudget, 2100000);
@@ -78,7 +59,7 @@ void main() {
     test('đúng ví dụ: có 4tr, tiền ăn còn 2tr thì tự do 2tr', () {
       final m = money(
         spendable: 4000000,
-        budgets: [budget(limit: 2000000, spent: 0)],
+        budgets: [makeProgress(limit: 2000000, spent: 0)],
       );
       expect(m.reserved, 2000000);
       expect(m.free, 2000000);
@@ -88,7 +69,7 @@ void main() {
     test('chỉ giữ phần hạn mức CÒN LẠI, không giữ cả hạn mức', () {
       final m = money(
         spendable: 4000000,
-        budgets: [budget(limit: 2000000, spent: 500000)],
+        budgets: [makeProgress(limit: 2000000, spent: 500000)],
       );
       expect(m.free, 2500000);
     });
@@ -96,7 +77,7 @@ void main() {
     test('hạn mức đã vượt không giữ thêm gì', () {
       final m = money(
         spendable: 1000000,
-        budgets: [budget(limit: 2000000, spent: 2300000)],
+        budgets: [makeProgress(limit: 2000000, spent: 2300000)],
       );
       expect(m.reserved, 0);
       expect(m.free, 1000000);
@@ -105,7 +86,7 @@ void main() {
     test('số liệu của người dùng ngày 27/9: đang thiếu tiền ăn', () {
       final m = money(
         spendable: 188911,
-        budgets: [budget(limit: 2000000, spent: 1700320)],
+        budgets: [makeProgress(limit: 2000000, spent: 1700320)],
         daysRemaining: 3,
       );
       expect(m.free, -110769);
@@ -148,7 +129,7 @@ void main() {
   });
 
   group('xem trước một khoản chi', () {
-    final food = budget(limit: 2000000, spent: 1500000);
+    final food = makeProgress(limit: 2000000, spent: 1500000);
 
     test('nằm gọn trong hạn mức thì tiền tự do không đổi', () {
       final m = money(spendable: 2500000, budgets: [food]);
