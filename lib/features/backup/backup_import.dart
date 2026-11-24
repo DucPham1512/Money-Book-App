@@ -328,14 +328,16 @@ extension BackupImport on BackupService {
       final unitPrice = row['unitPrice'] as int? ?? 0;
       // Dòng giá không dương vốn bị bỏ qua lúc nhập, nên cũng không đem so.
       if (unitPrice <= 0) continue;
-      billsByTx.putIfAbsent(row['transactionId'], () => []).add(
-        BillLine(
-          name: row['name'] as String? ?? '',
-          quantity: row['quantity'] as int? ?? 1,
-          unitPrice: unitPrice,
-          isDiscount: row['isDiscount'] as bool? ?? false,
-        ),
-      );
+      billsByTx
+          .putIfAbsent(row['transactionId'], () => [])
+          .add(
+            BillLine(
+              name: row['name'] as String? ?? '',
+              quantity: row['quantity'] as int? ?? 1,
+              unitPrice: unitPrice,
+              isDiscount: row['isDiscount'] as bool? ?? false,
+            ),
+          );
     }
 
     for (var i = 0; i < txRows.length; i++) {
@@ -383,8 +385,9 @@ extension BackupImport on BackupService {
       if (!hasKeywords) {
         // File cũ không mang từ khoá: gieo lại từ khoá có sẵn theo tên danh
         // mục vừa nhập, ở lần đồng bộ tới.
-        await (db.delete(db.settingsKv)
-              ..where((s) => s.key.equals(AutoTrackRepository.kKeywordsSeededKey)))
+        await (db.delete(db.settingsKv)..where(
+              (s) => s.key.equals(AutoTrackRepository.kKeywordsSeededKey),
+            ))
             .go();
       }
     }
@@ -393,21 +396,23 @@ extension BackupImport on BackupService {
       final pkg = row['packageName'] as String?;
       final parserId = row['parserId'] as String?;
       if (pkg == null || parserId == null) continue;
-      final existing = await (db.select(db.trackedApps)
-            ..where((t) => t.packageName.equals(pkg)))
-          .getSingleOrNull();
+      final existing = await (db.select(
+        db.trackedApps,
+      )..where((t) => t.packageName.equals(pkg))).getSingleOrNull();
       if (existing != null && existing.parserId != null) continue;
-      await db.into(db.trackedApps).insertOnConflictUpdate(
-        TrackedAppsCompanion.insert(
-          packageName: pkg,
-          parserId: Value(parserId),
-          label: Value(row['label'] as String?),
-          enabled: Value(row['enabled'] as bool? ?? true),
-          defaultWalletId: Value(walletIds[row['defaultWalletId']]),
-          createdAt: now,
-          updatedAt: now,
-        ),
-      );
+      await db
+          .into(db.trackedApps)
+          .insertOnConflictUpdate(
+            TrackedAppsCompanion.insert(
+              packageName: pkg,
+              parserId: Value(parserId),
+              label: Value(row['label'] as String?),
+              enabled: Value(row['enabled'] as bool? ?? true),
+              defaultWalletId: Value(walletIds[row['defaultWalletId']]),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
     }
 
     for (final row in accountWalletRows) {
@@ -415,18 +420,20 @@ extension BackupImport on BackupService {
       final pkg = row['packageName'] as String?;
       final suffix = row['accountSuffix'] as String?;
       if (walletId == null || pkg == null || suffix == null) continue;
-      final app = await (db.select(db.trackedApps)
-            ..where((t) => t.packageName.equals(pkg)))
-          .getSingleOrNull();
+      final app = await (db.select(
+        db.trackedApps,
+      )..where((t) => t.packageName.equals(pkg))).getSingleOrNull();
       if (app == null) continue;
-      await db.into(db.accountWallets).insert(
-        AccountWalletsCompanion.insert(
-          packageName: pkg,
-          accountSuffix: suffix,
-          walletId: walletId,
-        ),
-        mode: InsertMode.insertOrIgnore,
-      );
+      await db
+          .into(db.accountWallets)
+          .insert(
+            AccountWalletsCompanion.insert(
+              packageName: pkg,
+              accountSuffix: suffix,
+              walletId: walletId,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
     }
 
     for (final row in ruleRows) {
@@ -438,44 +445,50 @@ extension BackupImport on BackupService {
       if (categoryId == null || key == null || key.isEmpty || flow == null) {
         continue;
       }
-      await db.into(db.receiverRules).insert(
-        ReceiverRulesCompanion.insert(
-          matchType: row['matchType'] as String? ?? 'name',
-          matchKey: key,
-          flow: flow,
-          displayName: row['displayName'] as String? ?? key,
-          categoryId: categoryId,
-          hitCount: Value(row['hitCount'] as int? ?? 0),
-          lastUsedAt: Value(row['lastUsedAt'] as int?),
-          createdAt: row['createdAt'] as int? ?? now,
-          updatedAt: row['updatedAt'] as int? ?? now,
-        ),
-        mode: InsertMode.insertOrIgnore,
-      );
+      await db
+          .into(db.receiverRules)
+          .insert(
+            ReceiverRulesCompanion.insert(
+              matchType: row['matchType'] as String? ?? 'name',
+              matchKey: key,
+              flow: flow,
+              displayName: row['displayName'] as String? ?? key,
+              categoryId: categoryId,
+              hitCount: Value(row['hitCount'] as int? ?? 0),
+              lastUsedAt: Value(row['lastUsedAt'] as int?),
+              createdAt: row['createdAt'] as int? ?? now,
+              updatedAt: row['updatedAt'] as int? ?? now,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
     }
 
     for (final row in keywordRows) {
       final categoryId = categoryIds[row['categoryId']];
       final keyword = row['keyword'] as String?;
       if (categoryId == null || keyword == null || keyword.isEmpty) continue;
-      await db.into(db.categoryKeywords).insert(
-        CategoryKeywordsCompanion.insert(
-          keyword: keyword,
-          categoryId: categoryId,
-          isBuiltIn: Value(row['isBuiltIn'] as bool? ?? false),
-          enabled: Value(row['enabled'] as bool? ?? true),
-          createdAt: row['createdAt'] as int? ?? now,
-        ),
-        mode: InsertMode.insertOrIgnore,
-      );
+      await db
+          .into(db.categoryKeywords)
+          .insert(
+            CategoryKeywordsCompanion.insert(
+              keyword: keyword,
+              categoryId: categoryId,
+              isBuiltIn: Value(row['isBuiltIn'] as bool? ?? false),
+              enabled: Value(row['enabled'] as bool? ?? true),
+              createdAt: row['createdAt'] as int? ?? now,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
     }
     if (hasKeywords) {
-      await db.into(db.settingsKv).insertOnConflictUpdate(
-        SettingsKvCompanion.insert(
-          key: AutoTrackRepository.kKeywordsSeededKey,
-          value: 'true',
-        ),
-      );
+      await db
+          .into(db.settingsKv)
+          .insertOnConflictUpdate(
+            SettingsKvCompanion.insert(
+              key: AutoTrackRepository.kKeywordsSeededKey,
+              value: 'true',
+            ),
+          );
     }
   }
 
@@ -485,7 +498,7 @@ extension BackupImport on BackupService {
       decoded = jsonDecode(jsonString);
     } on FormatException {
       throw const BackupException(
-        'File không đọc được. Hãy chọn đúng file .json do app này xuất ra.',
+        'File không đọc được. Hãy chọn file .json do app này xuất.',
       );
     }
 
@@ -504,8 +517,7 @@ extension BackupImport on BackupService {
     }
     if (version > kBackupFormatVersion) {
       throw BackupException(
-        'File này được tạo bởi phiên bản app mới hơn (v$version). '
-        'Hãy cập nhật app rồi thử lại.',
+        'File từ phiên bản app mới hơn (v$version). Hãy cập nhật app.',
       );
     }
 

@@ -11,10 +11,7 @@ import '../../core/providers.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
-Future<void> showFundEditor(
-  BuildContext context, {
-  FundProgress? editing,
-}) {
+Future<void> showFundEditor(BuildContext context, {FundProgress? editing}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -145,9 +142,8 @@ class _FundEditorState extends ConsumerState<_FundEditor> {
       final ok = await confirmDialog(
         context,
         title: 'Quỹ vẫn còn tiền',
-        message: '${progress.name} đang giữ ${formatVnd(progress.saved)}.\n\n'
-            'Xoá quỹ không làm mất tiền — số này sẽ quay lại phần tiêu được. '
-            'Các giao dịch cũ vẫn còn nguyên, chỉ mất nhãn quỹ.',
+        message:
+            '${formatVnd(progress.saved)} sẽ quay lại tiền tiêu được. Giao dịch cũ vẫn còn.',
         confirmLabel: 'Xoá quỹ',
       );
       if (!ok || !mounted) return;
@@ -227,8 +223,7 @@ class _FundEditorState extends ConsumerState<_FundEditor> {
                 decoration: InputDecoration(
                   labelText: 'Ví giữ tiền quỹ',
                   helperText: _isEditing
-                      ? 'Không đổi được ví. Muốn chuyển thì lập quỹ mới ở '
-                          'ví kia, chuyển tiền sang rồi xoá quỹ này'
+                      ? 'Không đổi được ví. Muốn chuyển, hãy lập quỹ mới ở ví kia'
                       : 'Thường là ngân hàng ít dùng, để khỏi tiêu nhầm',
                   helperMaxLines: 2,
                   prefixIcon: const Icon(Icons.account_balance_outlined),
@@ -248,13 +243,17 @@ class _FundEditorState extends ConsumerState<_FundEditor> {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child:
-                                Text(w.name, overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              w.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           Text(
                             formatVndShort(w.balance),
-                            style:
-                                TextStyle(color: scheme.outline, fontSize: 13),
+                            style: TextStyle(
+                              color: scheme.outline,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -282,9 +281,7 @@ class _FundEditorState extends ConsumerState<_FundEditor> {
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.event_outlined),
               title: const Text('Khi nào cần dùng'),
-              subtitle: Text(
-                _due == null ? 'Chưa đặt' : formatDate(_due!),
-              ),
+              subtitle: Text(_due == null ? 'Chưa đặt' : formatDate(_due!)),
               trailing: _due == null
                   ? const Icon(Icons.chevron_right)
                   : IconButton(

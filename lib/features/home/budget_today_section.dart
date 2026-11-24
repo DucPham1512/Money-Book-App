@@ -121,7 +121,6 @@ class _BudgetTodayRow extends StatelessWidget {
         progress.daysRemaining > 0 &&
         progress.hole > 0 &&
         progress.recoveryLimit < target;
-    final released = progress.unusedBeforeToday;
     // Thanh vơi dần chứ không đầy dần: tiền đang hết đi thì thanh phải ngắn
     // lại, nhìn là hiểu ngay mà không cần đọc số.
     final barValue = progress.remainingRatioToday(spentToday);
@@ -188,58 +187,31 @@ class _BudgetTodayRow extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            if (overToday) ...[
-              Text(
-                'Hôm nay lố ${formatVnd(-left)}. '
-                'Những ngày sau mốc sẽ tự hạ để cả tháng vẫn đủ.',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: expenseColor(context),
-                ),
+            // Một dòng trạng thái, cộng nhiều nhất một gợi ý khi mốc bị hạ.
+            Text(
+              overToday ? 'Lố ${formatVnd(-left)} hôm nay' : _detail(context),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: overToday ? FontWeight.w500 : FontWeight.normal,
+                color: overToday ? expenseColor(context) : scheme.outline,
               ),
-              const SizedBox(height: 4),
-            ] else if (spentToday > 0) ...[
+            ),
+            if (showRecovery || showCarriedOver) ...[
+              const SizedBox(height: 2),
               Text(
-                'Đã tiêu ${formatVnd(spentToday)} hôm nay',
-                style: TextStyle(fontSize: 12, color: scheme.outline),
-              ),
-              const SizedBox(height: 4),
-            ],
-            if (showCarriedOver) ...[
-              Text(
-                'Những ngày trước tiêu quá ${formatVnd(carriedOver)}, nên mốc '
-                'hôm nay hạ từ ${formatVndShort(progress.dailyAllowance)} '
-                'xuống ${formatVndShort(target)}.',
+                showRecovery
+                    ? 'Giữ dưới ${formatVndShort(progress.recoveryLimit)}/ngày, '
+                          '${progress.daysToRecover} ngày nữa về lại '
+                          '${formatVndShort(progress.normalToday)}'
+                    : 'Mốc hạ từ ${formatVndShort(progress.dailyAllowance)} '
+                          'vì hôm trước tiêu quá',
                 style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 4),
-            ],
-            if (showRecovery) ...[
-              Text(
-                'Gợi ý: tiêu tối đa ${formatVndShort(progress.recoveryLimit)}'
-                '/ngày thì khoảng ${progress.daysToRecover} ngày nữa về lại '
-                '${formatVndShort(progress.normalToday)}/ngày.',
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 4),
-            ],
-            if (released > 0 && !progress.isOver) ...[
-              Text(
-                'Những ngày trước còn dư ${formatVnd(released)}, đã chuyển '
-                'sang tiền tự do.',
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 4),
             ],
             if (progress.isLimitedByCash) ...[
-              CashLimitNote(progress: progress),
               const SizedBox(height: 4),
+              CashLimitNote(progress: progress),
             ],
-            Text(
-              _detail(context),
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-            ),
           ],
         ),
       ),
@@ -249,20 +221,19 @@ class _BudgetTodayRow extends StatelessWidget {
   String _detail(BuildContext context) {
     // Dùng lại đúng con số mốc đã hiện ở trên để hai chỗ không nói vênh nhau.
     if (progress.isOver) {
-      return 'Đã vượt hạn mức tháng ${formatVnd(-progress.remaining)}';
+      return 'Vượt hạn mức ${formatVnd(-progress.remaining)}';
     }
     if (progress.daysRemaining <= 0) {
-      return 'Hết tháng, còn dư ${formatVnd(progress.remaining)}';
+      return 'Hết tháng · dư ${formatVnd(progress.remaining)}';
     }
 
-    final perDay = formatVnd(progress.remainingDailyAllowance);
     // Hết tiền thật trước khi hết hạn mức thì chia theo tiền thật.
     final left =
-        'Còn ${formatVnd(progress.spendableAfterToday)} cho '
-        '${progress.daysRemaining} ngày · $perDay/ngày';
+        'Còn ${formatVndShort(progress.spendableAfterToday)} cho '
+        '${progress.daysRemaining} ngày';
 
     return switch (progress.pace) {
-      BudgetPace.fast => '$left · đang tiêu nhanh hơn nhịp',
+      BudgetPace.fast => '$left · đang tiêu nhanh',
       _ => left,
     };
   }

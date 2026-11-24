@@ -39,69 +39,68 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   }
 
   Future<void> _exportJson() => _run(() async {
-        final service = ref.read(backupServiceProvider);
-        final file = await service.writeJsonFile();
-        if (!mounted) return;
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(file.path)],
-            subject: 'Sao lưu Quản Lý Chi Tiêu',
-            text: 'Bản sao lưu ngày ${formatDate(DateTime.now())}',
-          ),
-        );
-      });
+    final service = ref.read(backupServiceProvider);
+    final file = await service.writeJsonFile();
+    if (!mounted) return;
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: 'Sao lưu Quản Lý Chi Tiêu',
+        text: 'Bản sao lưu ngày ${formatDate(DateTime.now())}',
+      ),
+    );
+  });
 
   Future<void> _exportCsv() => _run(() async {
-        final service = ref.read(backupServiceProvider);
-        final file = await service.writeCsvFile();
-        if (!mounted) return;
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(file.path)],
-            subject: 'Giao dịch Quản Lý Chi Tiêu',
-          ),
-        );
-      });
+    final service = ref.read(backupServiceProvider);
+    final file = await service.writeCsvFile();
+    if (!mounted) return;
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: 'Giao dịch Quản Lý Chi Tiêu',
+      ),
+    );
+  });
 
   Future<void> _import() => _run(() async {
-        final picked = await FilePicker.platform.pickFiles(
-          type: FileType.any,
-          withData: false,
-        );
-        final path = picked?.files.singleOrNull?.path;
-        if (path == null) return;
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      withData: false,
+    );
+    final path = picked?.files.singleOrNull?.path;
+    if (path == null) return;
 
-        final service = ref.read(backupServiceProvider);
-        final content = await File(path).readAsString();
+    final service = ref.read(backupServiceProvider);
+    final content = await File(path).readAsString();
 
-        // Đọc thử trước để nói rõ sắp nạp bao nhiêu, và để file hỏng bị chặn
-        // ngay chứ không phải sau khi người dùng đã chọn ghi đè.
-        final stats = await service.peek(content);
-        if (!mounted) return;
+    // Đọc thử trước để nói rõ sắp nạp bao nhiêu, và để file hỏng bị chặn
+    // ngay chứ không phải sau khi người dùng đã chọn ghi đè.
+    final stats = await service.peek(content);
+    if (!mounted) return;
 
-        final mode = await _askImportMode(stats);
-        if (mode == null || !mounted) return;
+    final mode = await _askImportMode(stats);
+    if (mode == null || !mounted) return;
 
-        if (mode == ImportMode.replace) {
-          final confirmed = await confirmDialog(
-            context,
-            title: 'Ghi đè toàn bộ dữ liệu?',
-            message: 'Mọi ví, giao dịch, danh bạ và ngân sách hiện có sẽ bị '
-                'xoá, thay bằng dữ liệu trong file.\n\n'
-                'Nếu chưa chắc, hãy xuất một bản sao lưu trước.',
-            confirmLabel: 'Ghi đè',
-          );
-          if (!confirmed || !mounted) return;
-        }
+    if (mode == ImportMode.replace) {
+      final confirmed = await confirmDialog(
+        context,
+        title: 'Ghi đè toàn bộ dữ liệu?',
+        message:
+            'Mọi dữ liệu hiện có sẽ bị thay bằng file này. Nên xuất bản sao lưu trước.',
+        confirmLabel: 'Ghi đè',
+      );
+      if (!confirmed || !mounted) return;
+    }
 
-        final result = await service.import(content, mode: mode);
-        if (!mounted) return;
-        showSnack(
-          context,
-          'Đã nạp ${result.stats.transactions} giao dịch, '
-          '${result.stats.wallets} ví, ${result.stats.people} người',
-        );
-      });
+    final result = await service.import(content, mode: mode);
+    if (!mounted) return;
+    showSnack(
+      context,
+      'Đã nạp ${result.stats.transactions} giao dịch, '
+      '${result.stats.wallets} ví, ${result.stats.people} người',
+    );
+  });
 
   Future<ImportMode?> _askImportMode(BackupStats stats) {
     return showDialog<ImportMode>(
@@ -164,9 +163,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                       const SizedBox(width: 14),
                       Expanded(
                         child: Text(
-                          'Dữ liệu chỉ nằm trong máy này. Mất máy hoặc gỡ app '
-                          'là mất hết, nên thỉnh thoảng hãy xuất một bản và '
-                          'cất vào Drive hoặc Zalo của chính mình.',
+                          'Dữ liệu chỉ nằm trong máy này. Hãy xuất bản sao '
+                          'lưu định kỳ.',
                           style: TextStyle(
                             fontSize: 13,
                             color: scheme.onPrimaryContainer,
@@ -185,18 +183,14 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                     ListTile(
                       leading: const Icon(Icons.save_alt),
                       title: const Text('Sao lưu đầy đủ'),
-                      subtitle: const Text(
-                        'File .json chứa mọi thứ, dùng để khôi phục lại sau này',
-                      ),
+                      subtitle: const Text('File .json, dùng để khôi phục'),
                       onTap: _busy ? null : _exportJson,
                     ),
                     const Divider(height: 1, indent: 56),
                     ListTile(
                       leading: const Icon(Icons.table_chart_outlined),
                       title: const Text('Bảng giao dịch (CSV)'),
-                      subtitle: const Text(
-                        'Mở bằng Excel để xem hoặc tự tính toán thêm',
-                      ),
+                      subtitle: const Text('Mở bằng Excel'),
                       onTap: _busy ? null : _exportCsv,
                     ),
                   ],
@@ -208,18 +202,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.upload_file),
                   title: const Text('Khôi phục từ file'),
-                  subtitle: const Text(
-                    'Chọn file .json đã sao lưu trước đó',
-                  ),
+                  subtitle: const Text('Ghi đè hoặc gộp với dữ liệu hiện có'),
                   onTap: _busy ? null : _import,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Khi nạp, bạn chọn ghi đè toàn bộ hoặc gộp thêm vào dữ liệu '
-                'đang có. File hỏng hoặc không đúng định dạng sẽ bị từ chối '
-                'mà không đụng gì tới dữ liệu hiện tại.',
-                style: TextStyle(fontSize: 12, color: scheme.outline),
               ),
             ],
           ),

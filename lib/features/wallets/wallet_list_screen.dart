@@ -34,8 +34,7 @@ class WalletListScreen extends ConsumerWidget {
             return const EmptyState(
               icon: Icons.account_balance_wallet_outlined,
               title: 'Chưa có ví nào',
-              message: 'Thêm ví cho từng nguồn tiền: tiền mặt, MoMo, '
-                  'MB Bank, Techcombank...',
+              message: 'Mỗi nguồn tiền một ví: tiền mặt, ngân hàng, MoMo',
             );
           }
 
@@ -135,7 +134,9 @@ class _WalletTile extends ConsumerWidget {
                 value: 'archive',
                 child: ListTile(
                   leading: Icon(
-                    wallet.isArchived ? Icons.unarchive : Icons.archive_outlined,
+                    wallet.isArchived
+                        ? Icons.unarchive
+                        : Icons.archive_outlined,
                   ),
                   title: Text(wallet.isArchived ? 'Bỏ lưu trữ' : 'Lưu trữ'),
                   contentPadding: EdgeInsets.zero,
@@ -218,10 +219,8 @@ class _WalletTile extends ConsumerWidget {
           final archive = await confirmDialog(
             context,
             title: 'Không xoá được ví này',
-            message: '"${item.name}" đang có $count giao dịch. Xoá ví sẽ làm '
-                'mất lịch sử và sai số liệu thống kê.\n\n'
-                'Bạn có muốn lưu trữ thay thế không? Ví sẽ bị ẩn khỏi các ô '
-                'chọn nhưng lịch sử vẫn còn nguyên.',
+            message:
+                '"${item.name}" có $count giao dịch, xoá sẽ mất lịch sử.\n\nLưu trữ thay thế? Ví bị ẩn khỏi ô chọn, lịch sử vẫn còn.',
             confirmLabel: 'Lưu trữ',
             destructive: false,
           );

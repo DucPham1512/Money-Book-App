@@ -108,7 +108,7 @@ class BillSection extends StatelessWidget {
             onChanged();
           },
           title: const Text('Hoá đơn chi tiết'),
-          subtitle: const Text('Ghi từng món đã mua, số tiền là tổng hoá đơn'),
+          subtitle: const Text('Số tiền là tổng các món'),
         ),
         if (state.enabled) ...[
           for (var i = 0; i < state.rows.length; i++)

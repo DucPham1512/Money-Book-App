@@ -20,8 +20,10 @@ class CategoryListScreen extends ConsumerStatefulWidget {
 
 class _CategoryListScreenState extends ConsumerState<CategoryListScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController =
-      TabController(length: CategoryFlow.values.length, vsync: this);
+  late final TabController _tabController = TabController(
+    length: CategoryFlow.values.length,
+    vsync: this,
+  );
 
   @override
   void dispose() {
@@ -39,9 +41,7 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen>
         bottom: TabBar(
           controller: _tabController,
           onTap: (_) => setState(() {}),
-          tabs: [
-            for (final f in CategoryFlow.values) Tab(text: f.label),
-          ],
+          tabs: [for (final f in CategoryFlow.values) Tab(text: f.label)],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -56,9 +56,7 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          for (final f in CategoryFlow.values) _CategoryTab(flow: f),
-        ],
+        children: [for (final f in CategoryFlow.values) _CategoryTab(flow: f)],
       ),
     );
   }
@@ -71,12 +69,10 @@ class _CategoryTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final categories = ref.watch(
-      switch (flow) {
-        CategoryFlow.expense => expenseCategoriesProvider,
-        CategoryFlow.income => incomeCategoriesProvider,
-      },
-    );
+    final categories = ref.watch(switch (flow) {
+      CategoryFlow.expense => expenseCategoriesProvider,
+      CategoryFlow.income => incomeCategoriesProvider,
+    });
 
     return categories.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -107,8 +103,7 @@ class _CategoryTab extends ConsumerWidget {
           padding: const EdgeInsets.only(bottom: 96),
           itemCount: list.length,
           separatorBuilder: (_, _) => const Divider(height: 1, indent: 68),
-          itemBuilder: (context, index) =>
-              _CategoryTile(category: list[index]),
+          itemBuilder: (context, index) => _CategoryTile(category: list[index]),
         );
       },
     );
@@ -122,8 +117,9 @@ class _CategoryTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final color =
-        category.colorValue == null ? null : Color(category.colorValue!);
+    final color = category.colorValue == null
+        ? null
+        : Color(category.colorValue!);
 
     return ListTile(
       leading: IconAvatar(
@@ -139,10 +135,8 @@ class _CategoryTile extends ConsumerWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CategoryEditScreen(
-            flow: category.flow,
-            editing: category,
-          ),
+          builder: (_) =>
+              CategoryEditScreen(flow: category.flow, editing: category),
         ),
       ),
     );
@@ -158,9 +152,7 @@ class _CategoryTile extends ConsumerWidget {
       title: 'Xoá danh mục?',
       message: count == 0
           ? 'Xoá "${category.name}".'
-          : '"${category.name}" đang được dùng ở $count giao dịch.\n\n'
-              'Các giao dịch đó vẫn giữ nguyên số tiền, chỉ chuyển thành '
-              '"Chưa phân loại".',
+          : '$count giao dịch của "${category.name}" sẽ thành "Chưa phân loại".',
     );
     if (!ok) return;
 

@@ -92,9 +92,7 @@ class _UncategorizedTab extends ConsumerWidget {
       return const EmptyState(
         icon: Icons.task_alt,
         title: 'Không còn gì chưa phân loại',
-        message:
-            'Giao dịch tự ghi từ người nhận mới sẽ hiện ở đây. Phân loại một '
-            'lần, những lần sau app tự làm.',
+        message: 'Phân loại một lần, lần sau app tự làm',
       );
     }
     final groups = _groupByReceiver(items);
@@ -185,10 +183,7 @@ class _GroupTile extends ConsumerWidget {
     return ExpansionTile(
       tilePadding: const EdgeInsets.fromLTRB(16, 4, 12, 0),
       title: header,
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: action,
-      ),
+      subtitle: Padding(padding: const EdgeInsets.only(top: 4), child: action),
       children: [
         for (final item in group.items)
           ListTile(
@@ -217,9 +212,7 @@ class _GuessedTab extends ConsumerWidget {
       return const EmptyState(
         icon: Icons.task_alt,
         title: 'Không có gì cần xem lại',
-        message:
-            'Khi app đoán danh mục theo tên gần giống hoặc từ khoá, khoản đó '
-            'hiện ở đây để bạn xác nhận.',
+        message: 'Khoản app đoán danh mục sẽ chờ ở đây',
       );
     }
     return ListView.separated(

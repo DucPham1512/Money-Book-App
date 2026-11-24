@@ -20,11 +20,8 @@ Future<int?> pickCategory(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (context) => _CategorySheet(
-      flow: flow,
-      selected: selected,
-      title: title,
-    ),
+    builder: (context) =>
+        _CategorySheet(flow: flow, selected: selected, title: title),
   );
 }
 
@@ -38,14 +35,10 @@ class _CategorySheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cats =
-        ref
-            .watch(
-              switch (flow) {
-                CategoryFlow.expense => expenseCategoriesProvider,
-                CategoryFlow.income => incomeCategoriesProvider,
-              },
-            )
-            .value ??
+        ref.watch(switch (flow) {
+          CategoryFlow.expense => expenseCategoriesProvider,
+          CategoryFlow.income => incomeCategoriesProvider,
+        }).value ??
         const <Category>[];
     return SafeArea(
       child: Padding(
@@ -145,8 +138,7 @@ Future<LearnResult?> learnFromEdit(
       builder: (context) => AlertDialog(
         title: const Text('Đổi danh mục cho người nhận này?'),
         content: Text(
-          'App đang tự xếp "${info.receiverKey}" vào danh mục cũ. Đổi cho '
-          'riêng lần này, hay từ nay luôn dùng danh mục mới?',
+          'Đổi riêng lần này, hay luôn dùng danh mục mới cho "${info.receiverKey}"?',
         ),
         actions: [
           TextButton(

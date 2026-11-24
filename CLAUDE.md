@@ -341,3 +341,14 @@ Còn treo từ đợt dọn code (tháng 11/2026):
 - SQL của phần sao lưu chưa dời về `lib/core/db/`.
 - `recurringId` không được xuất ra file sao lưu.
 - Chưa có test bắt `readsFrom` thiếu bảng cho từng miền của Repository.
+- Cảnh báo lệch số dư (`checkAutoTrackHealth`) báo sai trong hai trường hợp
+  (đã tái hiện bằng test tạm, chưa sửa vì ảnh hưởng nhỏ):
+  1. Hai giao dịch cùng một phút trên một ví mà thông báo đến ngược thứ tự:
+     ngân hàng chỉ in giờ tới phút, `latestParsedPerWallet` lấy tin đến sau
+     cùng (`posted_at`) nên lấy số dư sau giao dịch thứ nhất, còn
+     `balanceOf(asOf: phút đó)` đã gồm cả hai → báo lệch, và giữ nguyên tới
+     giao dịch kế tiếp. Hướng sửa: xét mọi tin của phút cuối, khớp với một tin
+     bất kỳ là ổn.
+  2. Thông báo đến trễ: giao dịch sau được ghi trước khi tin của giao dịch
+     trước tới → báo lệch ngay, tự hết khi tin trễ tới. Hướng sửa: chỉ báo khi
+     tin mới nhất của ví đã quá ~10 phút.

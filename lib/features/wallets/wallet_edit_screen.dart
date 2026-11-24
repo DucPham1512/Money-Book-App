@@ -171,8 +171,7 @@ class _WalletEditScreenState extends ConsumerState<WalletEditScreen> {
                 suffixText: '₫',
                 hintText: '0',
                 helperText: _isEditing
-                    ? 'Đây là số dư lúc mới tạo ví, không phải số dư hiện tại. '
-                        'Muốn sửa số dư hiện tại thì dùng "Điều chỉnh số dư".'
+                    ? 'Số dư lúc tạo ví. Sửa số dư hiện tại ở "Điều chỉnh số dư"'
                     : 'Số tiền đang có trong ví này',
                 helperMaxLines: 3,
               ),

@@ -80,8 +80,9 @@ class SpendImpactNote extends ConsumerWidget {
     SpendImpact i,
     Color warn,
   ) {
+    // Một dòng, con số đi trước.
     final inBudget = i.fromBudget > 0 && i.budgetName != null
-        ? '${formatVnd(i.fromBudget)} nằm trong hạn mức ${i.budgetName}. '
+        ? '${formatVnd(i.fromBudget)} trong hạn mức ${i.budgetName} · '
         : '';
 
     if (i.fromReserve > 0) {
@@ -89,41 +90,27 @@ class SpendImpactNote extends ConsumerWidget {
       return (
         Icons.warning_amber_rounded,
         expenseColor(context),
-        '$inBudget${money.isExhausted ? 'Đã hết tiền tự do — ' : ''}'
-            'khoản này lấn ${formatVnd(i.fromReserve)} vào tiền đã giữ cho '
-            '${protected.isEmpty ? 'khoản nợ phải trả' : protected}. '
-            'Nếu không cần gấp thì nên nhịn.',
+        '$inBudget${money.isExhausted ? 'Hết tiền tự do · ' : ''}'
+            'Lấn ${formatVnd(i.fromReserve)} vào tiền giữ cho '
+            '${protected.isEmpty ? 'nợ phải trả' : protected}',
       );
     }
 
     if (i.fromFree > 0) {
-      final after = 'Còn ${formatVnd(i.freeAfter)} tự do tới hết tháng.';
-      final budgetOver = (i.budgetLeftAfter ?? 0) < 0
-          ? 'Quá phần còn giữ cho ${i.budgetName} '
-                '${formatVnd(-i.budgetLeftAfter!)}, phần quá '
-          : '';
-      final source =
-          '$inBudget$budgetOver'
-          '${budgetOver.isEmpty ? 'Lấy' : 'lấy'} ${formatVnd(i.fromFree)} từ '
-          'tiền tự do. ';
+      final text =
+          '$inBudget${formatVnd(i.fromFree)} từ tiền tự do · '
+          'còn ${formatVnd(i.freeAfter)}';
       if (i.overToday) {
-        return (
-          Icons.trending_up,
-          warn,
-          '$source$after Quá mốc nên tiêu hôm nay '
-              '(${formatVnd(money.leftForToday > 0 ? money.leftForToday : 0)}'
-              ' còn lại).',
-        );
+        return (Icons.trending_up, warn, '$text · quá mốc hôm nay');
       }
-      return (Icons.bolt, null, '$source$after');
+      return (Icons.bolt, null, text);
     }
 
     return (
       Icons.check_circle_outline,
       null,
-      'Nằm trong hạn mức ${i.budgetName}, còn '
-          '${formatVnd(i.budgetLeftAfter ?? 0)} sau khoản này. Tiền tự do '
-          'không đổi.',
+      'Trong hạn mức ${i.budgetName} · còn '
+          '${formatVnd(i.budgetLeftAfter ?? 0)}',
     );
   }
 }

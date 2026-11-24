@@ -38,10 +38,9 @@ class BudgetSummary extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'Ngân sách cần để ý',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               TextButton(
@@ -123,15 +122,12 @@ class _BudgetAlertRow extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               canStillSpend
-                  ? 'Còn ${progress.daysRemaining} ngày · tiêu dưới '
-                        '${formatVndShort(progress.remainingDailyAllowance)}/ngày '
-                        'thì vừa đủ'
+                  ? 'Dưới ${formatVndShort(progress.remainingDailyAllowance)}/ngày · ${progress.daysRemaining} ngày'
                   : progress.isOver
                   ? 'Hạn mức tháng này đã dùng hết'
                   : progress.daysRemaining > 0
                   ? 'Ví đã hết tiền tiêu được'
-                  : 'Hết tháng, còn dư '
-                        '${formatVndShort(progress.remaining)}',
+                  : 'Hết tháng · dư ${formatVndShort(progress.remaining)}',
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
             ),
           ),

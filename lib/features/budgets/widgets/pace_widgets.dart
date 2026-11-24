@@ -101,9 +101,7 @@ class CashLimitNote extends StatelessWidget {
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            'Tiền trong ví chỉ còn đủ ${formatVnd(progress.spendable)} cho '
-            'mục này, ít hơn ${formatVnd(progress.reserved)} hạn mức còn '
-            'giữ — phần chênh đã tiêu sang khoản khác.',
+            'Ví chỉ còn ${formatVnd(progress.spendable)} cho mục này',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -191,9 +189,8 @@ class BudgetPaceRow extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             canStillSpend
-                ? 'Còn ${progress.daysRemaining} ngày, tiêu dưới '
-                    '${formatVnd(progress.remainingDailyAllowance)} mỗi ngày '
-                    'thì vừa đủ.'
+                ? 'Dưới ${formatVnd(progress.remainingDailyAllowance)}/ngày '
+                    'trong ${progress.daysRemaining} ngày còn lại'
                 : _fallbackDetail(),
             style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
           ),
@@ -208,9 +205,9 @@ class BudgetPaceRow extends StatelessWidget {
               // Nói số ngày còn cầm cự được, vì "hết tiền vào ngày 10" nghe
               // như còn xa trong khi thực ra chỉ còn vài hôm nữa.
               progress.daysUntilRunOut == 0
-                  ? 'Giữ nhịp này thì hôm nay là hết tiền.'
-                  : 'Giữ nhịp này thì khoảng ${progress.daysUntilRunOut} ngày '
-                      'nữa là hết, tức ngày ${progress.projectedRunOutDay}.',
+                  ? 'Theo nhịp này, hết tiền ngay hôm nay'
+                  : 'Theo nhịp này, hết tiền sau ${progress.daysUntilRunOut} '
+                      'ngày (ngày ${progress.projectedRunOutDay})',
               style: TextStyle(fontSize: 12, color: scheme.outline),
             ),
           ],
@@ -225,21 +222,21 @@ class BudgetPaceRow extends StatelessWidget {
 
     return switch (progress.pace) {
       BudgetPace.over =>
-        'Đã vượt hạn mức ${formatVnd(-progress.remaining)}',
+        'Vượt hạn mức ${formatVnd(-progress.remaining)}',
       BudgetPace.fast =>
-        'Đang tiêu $avg mỗi ngày, cao hơn mức $allowance',
-      BudgetPace.onTrack => 'Đúng nhịp — khoảng $avg mỗi ngày',
-      BudgetPace.slow => 'Đang tiết kiệm — mới $avg mỗi ngày',
+        'Tiêu nhanh · $avg/ngày, mức $allowance',
+      BudgetPace.onTrack => 'Đúng nhịp · $avg/ngày',
+      BudgetPace.slow => 'Tiết kiệm · $avg/ngày',
     };
   }
 
   String _fallbackDetail() {
     if (progress.remaining <= 0) {
-      return 'Hạn mức tháng này đã dùng hết.';
+      return 'Đã dùng hết hạn mức';
     }
     if (progress.daysRemaining > 0) {
-      return 'Ví đã hết tiền tiêu được dù hạn mức vẫn còn.';
+      return 'Ví đã hết tiền tiêu được';
     }
-    return 'Hết tháng rồi, còn dư ${formatVnd(progress.remaining)}.';
+    return 'Hết tháng · dư ${formatVnd(progress.remaining)}';
   }
 }

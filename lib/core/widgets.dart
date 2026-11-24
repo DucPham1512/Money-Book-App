@@ -249,6 +249,61 @@ class EmptyState extends StatelessWidget {
   }
 }
 
+/// Nút ⓘ nhỏ mở lời giải thích một khái niệm.
+///
+/// Giải thích chỉ cần đọc một lần thì để sau nút này, không nằm thường trực
+/// trên màn hình: màn hình dành cho con số và việc cần làm.
+class InfoButton extends StatelessWidget {
+  const InfoButton({
+    super.key,
+    required this.title,
+    required this.points,
+  });
+
+  final String title;
+
+  /// Mỗi ý một câu ngắn.
+  final List<String> points;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return IconButton(
+      icon: Icon(Icons.info_outline, size: 18, color: scheme.outline),
+      tooltip: title,
+      visualDensity: VisualDensity.compact,
+      onPressed: () => showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 12),
+                for (final p in points)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('•  ', style: TextStyle(color: scheme.outline)),
+                        Expanded(child: Text(p)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Hộp thoại xác nhận. Trả về true nếu người dùng đồng ý.
 Future<bool> confirmDialog(
   BuildContext context, {

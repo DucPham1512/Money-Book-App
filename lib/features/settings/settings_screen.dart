@@ -109,10 +109,7 @@ class SettingsScreen extends ConsumerWidget {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Quản Lý Chi Tiêu'),
-            subtitle: Text(
-              'Toàn bộ dữ liệu nằm trong máy bạn. Không tài khoản, '
-              'không internet, không ai xem được.',
-            ),
+            subtitle: Text('Dữ liệu chỉ nằm trong máy này'),
           ),
         ],
       ),

@@ -17,7 +17,6 @@ class MonthComparison extends ConsumerWidget {
     final current = ref.watch(monthTotalsProvider(monthKey));
     final previous =
         ref.watch(monthTotalsProvider(previousMonthKey(monthKey)));
-    final scheme = Theme.of(context).colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,11 +88,6 @@ class MonthComparison extends ConsumerWidget {
             _LegendDot(color: incomeColor(context), label: 'Thu'),
             const SizedBox(width: 16),
             _LegendDot(color: expenseColor(context), label: 'Chi'),
-            const Spacer(),
-            Text(
-              'Cột dài hơn = số tiền lớn hơn',
-              style: TextStyle(fontSize: 11.5, color: scheme.outline),
-            ),
           ],
         ),
       ],

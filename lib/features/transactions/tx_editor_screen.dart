@@ -127,8 +127,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
   bool get _usesBill => _form.usesBill;
 
   /// Số tiền sẽ ghi: tổng hoá đơn nếu đang dùng hoá đơn, không thì số gõ tay.
-  int get _amount =>
-      _usesBill ? _bill.total : parseVnd(_amountController.text);
+  int get _amount => _usesBill ? _bill.total : parseVnd(_amountController.text);
 
   @override
   void initState() {
@@ -144,8 +143,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
       _personId = editing.tx.personId;
       _fundId = editing.tx.fundId;
       _paidByOther = editing.isPaidByOther;
-      _occurredAt =
-          DateTime.fromMillisecondsSinceEpoch(editing.tx.occurredAt);
+      _occurredAt = DateTime.fromMillisecondsSinceEpoch(editing.tx.occurredAt);
       if (editing.hasBill) {
         _billLoading = true;
         _loadBill(editing.tx.id);
@@ -244,7 +242,6 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
     if (picked == null || !mounted) return;
     setState(() => _occurredAt = picked);
   }
-
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -373,9 +370,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                   AmountField(
                     controller: _amountController,
                     autofocus: !_isEditing,
-                    label: _form.usesSplit
-                        ? 'Tổng hoá đơn'
-                        : 'Số tiền',
+                    label: _form.usesSplit ? 'Tổng hoá đơn' : 'Số tiền',
                     // Bảng chia tiền và dòng "khoản này lấy tiền từ đâu" đều
                     // phụ thuộc vào số tiền nên phải vẽ lại theo từng phím.
                     onChanged: (_) => setState(() {}),
@@ -399,10 +394,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                 ],
                 if (_canBill) ...[
                   const SizedBox(height: 8),
-                  BillSection(
-                    state: _bill,
-                    onChanged: () => setState(() {}),
-                  ),
+                  BillSection(state: _bill, onChanged: () => setState(() {})),
                 ],
                 if (_canPayByOther) ...[
                   const SizedBox(height: 8),
@@ -428,10 +420,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
                   total: _amount,
                   myShareFor: _split.myShareFor,
                 ),
-                OccurredAtTile(
-                  occurredAt: _occurredAt,
-                  onTap: _pickDateTime,
-                ),
+                OccurredAtTile(occurredAt: _occurredAt, onTap: _pickDateTime),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _noteController,
@@ -458,8 +447,8 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
               _isEditing
                   ? 'Lưu thay đổi'
                   : _form.usesSplit
-                      ? 'Ghi và chia tiền'
-                      : 'Ghi lại',
+                  ? 'Ghi và chia tiền'
+                  : 'Ghi lại',
             ),
           ),
         ),
@@ -479,8 +468,7 @@ class _TxEditorScreenState extends ConsumerState<TxEditorScreen> {
       context,
       title: 'Xoá giao dịch?',
       message: groupCount > 1
-          ? 'Giao dịch này nằm trong một nhóm $groupCount giao dịch được ghi '
-              'cùng lúc. Cả nhóm sẽ bị xoá.'
+          ? 'Giao dịch này thuộc nhóm $groupCount giao dịch ghi cùng lúc. Cả nhóm sẽ bị xoá.'
           : 'Bạn có thể hoàn tác ngay sau khi xoá.',
     );
     if (!ok || !mounted) return;

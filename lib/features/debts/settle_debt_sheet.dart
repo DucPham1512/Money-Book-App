@@ -66,9 +66,7 @@ class _SettleDebtSheetState extends ConsumerState<_SettleDebtSheet> {
     if (_theyOweMe) {
       _walletId = wallets.first.id;
     } else {
-      final richest = wallets.reduce(
-        (a, b) => b.balance > a.balance ? b : a,
-      );
+      final richest = wallets.reduce((a, b) => b.balance > a.balance ? b : a);
       _walletId = richest.id;
     }
   }
@@ -95,7 +93,9 @@ class _SettleDebtSheetState extends ConsumerState<_SettleDebtSheet> {
       amount: _amount,
       occurredAt: DateTime.now(),
       // Xoá nợ thì không có tiền nào chạy đi đâu, nên không gắn ví nào cả.
-      walletFromId: _writeoff ? null : (_kind.needsWalletFrom ? _walletId : null),
+      walletFromId: _writeoff
+          ? null
+          : (_kind.needsWalletFrom ? _walletId : null),
       walletToId: _writeoff ? null : (_kind.needsWalletTo ? _walletId : null),
       personId: widget.person.id,
       isWriteoff: _writeoff,
@@ -141,9 +141,9 @@ class _SettleDebtSheetState extends ConsumerState<_SettleDebtSheet> {
             Text(
               _theyOweMe
                   ? '${widget.person.name} đang nợ bạn '
-                      '${formatVnd(widget.net.abs())}'
+                        '${formatVnd(widget.net.abs())}'
                   : 'Bạn đang nợ ${widget.person.name} '
-                      '${formatVnd(widget.net.abs())}',
+                        '${formatVnd(widget.net.abs())}',
               style: TextStyle(color: scheme.outline),
             ),
             const SizedBox(height: 20),
@@ -167,9 +167,7 @@ class _SettleDebtSheetState extends ConsumerState<_SettleDebtSheet> {
               value: _writeoff,
               onChanged: (v) => setState(() => _writeoff = v),
               title: const Text('Xoá nợ, không có tiền'),
-              subtitle: const Text(
-                'Hai bên bỏ qua khoản này. Công nợ về 0 nhưng ví không đổi.',
-              ),
+              subtitle: const Text('Công nợ về 0, ví không đổi'),
             ),
             if (!_writeoff) ...[
               const SizedBox(height: 8),
@@ -179,43 +177,48 @@ class _SettleDebtSheetState extends ConsumerState<_SettleDebtSheet> {
                 data: (list) {
                   _pickDefaultWallet(list);
                   return DropdownButtonFormField<int>(
-                  initialValue: _walletId,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: _theyOweMe ? 'Nhận vào ví' : 'Trả từ ví',
-                    prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
-                  ),
-                  items: [
-                    for (final w in list)
-                      DropdownMenuItem(
-                        value: w.id,
-                        child: Row(
-                          children: [
-                            Icon(
-                              iconFor(w.wallet.iconKey, fallback: Icons.wallet),
-                              size: 18,
-                              color: w.wallet.colorValue == null
-                                  ? null
-                                  : Color(w.wallet.colorValue!),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                w.name,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(
-                              formatVndShort(w.balance),
-                              style: TextStyle(
-                                color: scheme.outline,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
+                    initialValue: _walletId,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: _theyOweMe ? 'Nhận vào ví' : 'Trả từ ví',
+                      prefixIcon: const Icon(
+                        Icons.account_balance_wallet_outlined,
                       ),
-                  ],
+                    ),
+                    items: [
+                      for (final w in list)
+                        DropdownMenuItem(
+                          value: w.id,
+                          child: Row(
+                            children: [
+                              Icon(
+                                iconFor(
+                                  w.wallet.iconKey,
+                                  fallback: Icons.wallet,
+                                ),
+                                size: 18,
+                                color: w.wallet.colorValue == null
+                                    ? null
+                                    : Color(w.wallet.colorValue!),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  w.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Text(
+                                formatVndShort(w.balance),
+                                style: TextStyle(
+                                  color: scheme.outline,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                     onChanged: (v) => setState(() => _walletId = v),
                   );
                 },
@@ -237,13 +240,10 @@ class _SettleDebtSheetState extends ConsumerState<_SettleDebtSheet> {
                   Expanded(
                     child: Text(
                       _writeoff
-                          ? 'Ghi "${_kind.label}" ${formatVnd(_amount)} với '
-                              '${widget.person.name}, không đụng tới ví nào.'
+                          ? '${_kind.label} ${formatVnd(_amount)} · không đụng ví'
                           : _theyOweMe
-                              ? 'Ghi "${_kind.label}" ${formatVnd(_amount)}, '
-                                  'cộng vào ví bạn chọn.'
-                              : 'Ghi "${_kind.label}" ${formatVnd(_amount)}, '
-                                  'trừ vào ví bạn chọn.',
+                          ? '${_kind.label} ${formatVnd(_amount)} · cộng vào ví'
+                          : '${_kind.label} ${formatVnd(_amount)} · trừ vào ví',
                       style: TextStyle(
                         fontSize: 12.5,
                         color: scheme.onSurfaceVariant,

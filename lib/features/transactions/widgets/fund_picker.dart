@@ -58,8 +58,7 @@ class FundPicker extends ConsumerWidget {
         if (selected != null) ...[
           const SizedBox(height: 8),
           Text(
-            'Trừ vào quỹ ${selected.name}, đang có '
-            '${formatVnd(selected.saved)} ở ${selected.walletName}.',
+            'Quỹ có ${formatVnd(selected.saved)} ở ${selected.walletName}',
             style: TextStyle(fontSize: 12, color: scheme.outline),
           ),
         ],

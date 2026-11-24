@@ -44,61 +44,59 @@ class FreeMoneySection extends ConsumerWidget {
                 children: [
                   Icon(
                     exhausted ? Icons.do_not_disturb_on_outlined : Icons.bolt,
-                    size: 18,
+                    size: 16,
                     color: exhausted ? alert : scheme.primary,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       exhausted ? 'Hết tiền tự do' : 'Tiêu tự do hôm nay',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14.5,
-                        color: exhausted ? alert : null,
+                        fontSize: 13,
+                        color: exhausted ? alert : scheme.onSurfaceVariant,
                       ),
                     ),
                   ),
-                  if (!exhausted) ...[
+                  Icon(Icons.chevron_right, size: 18, color: scheme.outline),
+                ],
+              ),
+              if (!exhausted) ...[
+                const SizedBox(height: 2),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
                     Text(
                       overToday ? '-${formatVnd(-left)}' : formatVnd(left),
                       style: TextStyle(
-                        fontSize: 14.5,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: overToday ? alert : scheme.onSurface,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
                     Text(
-                      ' / ${formatVndShort(target)}',
+                      '  / ${formatVndShort(target)}',
                       style: TextStyle(fontSize: 13, color: scheme.outline),
                     ),
                   ],
-                  Icon(Icons.chevron_right, size: 18, color: scheme.outline),
-                ],
-              ),
-              const SizedBox(height: 10),
+                ),
+              ],
+              const SizedBox(height: 12),
               _CompositionBar(money: money),
               const SizedBox(height: 8),
               _Legend(money: money),
-              const SizedBox(height: 10),
-              Text(
-                _message(money),
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: exhausted || overToday
-                      ? FontWeight.w500
-                      : FontWeight.normal,
-                  color: exhausted || overToday
-                      ? alert
-                      : scheme.onSurfaceVariant,
-                ),
-              ),
-              if (money.reserves.isEmpty) ...[
-                const SizedBox(height: 6),
+              if (_message(money) case final message?) ...[
+                const SizedBox(height: 8),
                 Text(
-                  'Chưa giữ tiền cho mục nào. Đặt hạn mức cho ăn uống để app '
-                  'giữ tiền ăn trước, phần còn lại mới là tự do.',
-                  style: TextStyle(fontSize: 12, color: scheme.outline),
+                  message,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: exhausted || overToday
+                        ? FontWeight.w500
+                        : FontWeight.normal,
+                    color: exhausted || overToday ? alert : scheme.outline,
+                  ),
                 ),
               ],
             ],
@@ -108,29 +106,23 @@ class FreeMoneySection extends ConsumerWidget {
     );
   }
 
-  String _message(FreeMoney m) {
-    final protected = m.reserves.map((r) => r.name).join(', ');
+  /// Một dòng cảnh báo, con số đi trước; ngày thường thì không có gì để nói
+  /// thêm (chú thích đã có số tự do). Cách tính nằm trong bảng mở ra khi bấm.
+  String? _message(FreeMoney m) {
     if (m.free < 0) {
-      return 'Ví đang thiếu ${formatVnd(-m.free)} so với số cần giữ cho '
-          '${protected.isEmpty ? 'các khoản nợ' : protected}. Nhịn mọi khoản '
-          'ngoài ngân sách cho tới khi có thêm tiền.';
+      return 'Thiếu ${formatVnd(-m.free)} so với số cần giữ';
     }
-    if (m.free == 0) {
-      return 'Vừa hết tiền tự do. Từ giờ mọi khoản ngoài '
-          '${protected.isEmpty ? 'số nợ phải trả' : protected} sẽ lấn vào '
-          'tiền đã giữ.';
-    }
+    if (m.free == 0) return 'Chi thêm sẽ lấn vào tiền đã giữ';
     if (m.leftForToday < 0) {
-      return 'Hôm nay tiêu tự do lố ${formatVnd(-m.leftForToday)}. '
-          '${m.daysRemaining > 0 ? 'Những ngày sau còn '
-                    '${formatVnd(m.perDayAfterToday)}/ngày.' : ''}';
+      return m.daysRemaining > 0
+          ? 'Lố ${formatVnd(-m.leftForToday)} · '
+                'những ngày sau ${formatVndShort(m.perDayAfterToday)}/ngày'
+          : 'Lố ${formatVnd(-m.leftForToday)} hôm nay';
     }
     if (m.daysRemaining <= 0) {
-      return 'Hôm nay là ngày cuối tháng. Còn ${formatVnd(m.free)} tự do.';
+      return 'Ngày cuối tháng · còn ${formatVnd(m.free)}';
     }
-    return 'Còn ${formatVnd(m.free)} tự do cho ${m.daysRemaining + 1} ngày '
-        'tới hết tháng. Tiêu đều dưới mốc mỗi ngày thì không bao giờ phải '
-        'đụng vào tiền ${protected.isEmpty ? 'đã giữ' : protected.toLowerCase()}.';
+    return null;
   }
 }
 
@@ -355,16 +347,8 @@ void showFreeMoneyBreakdown(BuildContext context, FreeMoney m) {
                 const SizedBox(height: 12),
               ],
               Text(
-                'Tiền quỹ đã được trừ sẵn khỏi tiền tiêu được. Phần giữ cho '
-                'ngân sách là số hạn mức còn lại của tháng này — tiêu trong '
-                'hạn mức thì tiền tự do không đổi. Chi vào mục không có hạn '
-                'mức, cho mượn hay trả dùm thì lấy từ tiền tự do.',
-                style: TextStyle(fontSize: 12.5, color: scheme.outline),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Tiền tự do chỉ tính tới hết tháng. Nếu lương tháng sau về '
-                'trễ, hãy chuyển trước một phần vào quỹ để khỏi tiêu mất.',
+                'Chi trong hạn mức không làm giảm tiền tự do. Chi ngoài hạn '
+                'mức, cho mượn, trả dùm thì trừ vào đây.',
                 style: TextStyle(fontSize: 12.5, color: scheme.outline),
               ),
               const SizedBox(height: 12),

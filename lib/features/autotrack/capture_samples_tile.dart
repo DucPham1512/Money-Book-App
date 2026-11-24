@@ -61,10 +61,7 @@ class _CaptureAppTileState extends ConsumerState<CaptureAppTile> {
         if (samples.isEmpty)
           const ListTile(
             dense: true,
-            title: Text(
-              'Chưa có mẫu nào. Cứ dùng app như bình thường, thông báo sẽ '
-              'hiện ở đây.',
-            ),
+            title: Text('Chưa có mẫu. Thông báo của app sẽ hiện ở đây'),
           ),
         for (final s in samples)
           CheckboxListTile(
@@ -111,8 +108,7 @@ class _CaptureAppTileState extends ConsumerState<CaptureAppTile> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
-                'Quá dài cho một lần gửi (tối đa ~8 KB). Bỏ chọn bớt rồi gửi '
-                'làm nhiều lần.',
+                'Quá dài cho một lần gửi. Bỏ chọn bớt',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.error,
                   fontSize: 12.5,
@@ -143,9 +139,7 @@ class _CaptureAppTileState extends ConsumerState<CaptureAppTile> {
       builder: (context) => AlertDialog(
         title: const Text('Gửi mẫu lên GitHub'),
         content: const Text(
-          'Repo này công khai. Số tài khoản đã được che, nhưng tên người và '
-          'lời nhắn thì chưa: hãy xoá tên người trong nội dung trên trang '
-          'GitHub trước khi bấm Submit.',
+          'Repo công khai. Số tài khoản đã được che, nhưng hãy xoá tên người trước khi bấm Submit.',
         ),
         actions: [
           TextButton(
