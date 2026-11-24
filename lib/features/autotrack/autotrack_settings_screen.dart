@@ -5,12 +5,12 @@ import '../../core/db/database.dart';
 import '../../core/db/repository.dart';
 import '../../core/domain/autotrack/parsers/notification_parser.dart';
 import '../../core/domain/autotrack/parsers/registry.dart';
-import '../../core/format/dates.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
 import 'app_picker_screen.dart';
 import 'autotrack_platform.dart';
 import 'autotrack_providers.dart';
+import 'capture_samples_tile.dart';
 import 'categorize_rules_screen.dart';
 import 'event_log_screen.dart';
 import 'review_screen.dart';
@@ -91,7 +91,7 @@ class _AutoTrackSettingsScreenState
               ),
             const _SectionLabel('Ghi mẫu cho ngân hàng mới'),
             for (final app in apps.where((a) => a.parserId == null))
-              _CaptureTile(app: app, onChanged: _apply),
+              CaptureAppTile(app: app, onChanged: _apply),
             ListTile(
               leading: const Icon(Icons.add),
               title: const Text('Ghi mẫu một app'),
@@ -497,37 +497,6 @@ class _AccountWallets extends ConsumerWidget {
         .read(autoTrackRepositoryProvider)
         .setAccountWallet(packageName, digits, walletId!);
     await onChanged();
-  }
-}
-
-/// Một app đang (hoặc đã hết hạn) ghi mẫu.
-class _CaptureTile extends ConsumerWidget {
-  const _CaptureTile({required this.app, required this.onChanged});
-
-  final TrackedApp app;
-  final Future<void> Function() onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final until = DateTime.fromMillisecondsSinceEpoch(app.captureUntil ?? 0);
-    final active = until.isAfter(DateTime.now());
-    return ListTile(
-      leading: Icon(active ? Icons.science_outlined : Icons.timer_off_outlined),
-      title: Text(app.label ?? app.packageName),
-      subtitle: Text(
-        active ? 'Ghi mẫu tới ${formatDateTime(until)}' : 'Đã hết hạn ghi mẫu',
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.close),
-        tooltip: 'Dừng ghi mẫu',
-        onPressed: () async {
-          await ref.read(autoTrackRepositoryProvider).removeTrackedApp(
-            app.packageName,
-          );
-          await onChanged();
-        },
-      ),
-    );
   }
 }
 

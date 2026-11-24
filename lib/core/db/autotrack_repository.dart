@@ -163,6 +163,18 @@ class AutoTrackRepository {
     db.trackedApps,
   )..where((t) => t.packageName.equals(packageName))).go();
 
+  /// Dừng ghi mẫu một app: bỏ app khỏi danh sách và xoá luôn các mẫu của nó
+  /// (mẫu chỉ có ích khi còn đang viết parser).
+  Future<void> stopCapture(String packageName) => db.transaction(() async {
+    await removeTrackedApp(packageName);
+    await (db.delete(db.notificationEvents)..where(
+          (e) =>
+              e.packageName.equals(packageName) &
+              e.status.equals(EventStatus.captured.name),
+        ))
+        .go();
+  });
+
   Future<void> setAppEnabled(String packageName, bool enabled) =>
       (db.update(db.trackedApps)
             ..where((t) => t.packageName.equals(packageName)))
@@ -296,6 +308,9 @@ class AutoTrackRepository {
 
   /// Thông báo cần (đọc lại): mới nhận, chưa có ví, hoặc chưa đọc được.
   /// Việc lọc theo phiên bản parser làm ở tầng dịch vụ.
+  ///
+  /// Không có mẫu ([EventStatus.captured]): mẫu chỉ để viết parser, kể cả khi
+  /// app đó về sau có parser thì mẫu cũng không bao giờ thành giao dịch.
   Future<List<NotificationEvent>> eventsToProcess() =>
       (db.select(db.notificationEvents)
             ..where(
@@ -304,7 +319,6 @@ class AutoTrackRepository {
                 EventStatus.unmapped.name,
                 EventStatus.unmatched.name,
                 EventStatus.failed.name,
-                EventStatus.captured.name,
               ]),
             )
             ..orderBy([(e) => OrderingTerm.asc(e.postedAt)]))
@@ -323,11 +337,14 @@ class AutoTrackRepository {
     return row != null;
   }
 
+  /// Nhật ký thông báo thật: mọi tin trừ mẫu (mẫu xem ở
+  /// [watchCapturedEvents]).
   Stream<List<NotificationEvent>> watchEvents({
     Set<EventStatus>? statuses,
     int limit = 300,
   }) {
     final q = db.select(db.notificationEvents)
+      ..where((e) => e.status.equals(EventStatus.captured.name).not())
       ..orderBy([(e) => OrderingTerm.desc(e.postedAt)])
       ..limit(limit);
     if (statuses != null) {
@@ -336,11 +353,23 @@ class AutoTrackRepository {
     return q.watch();
   }
 
+  /// Mẫu đã ghi của một app, mới nhất trước.
+  Stream<List<NotificationEvent>> watchCapturedEvents(String packageName) =>
+      (db.select(db.notificationEvents)
+            ..where(
+              (e) =>
+                  e.packageName.equals(packageName) &
+                  e.status.equals(EventStatus.captured.name),
+            )
+            ..orderBy([(e) => OrderingTerm.desc(e.postedAt)]))
+          .watch();
+
   /// Dọn tin không thành giao dịch: chúng chứa OTP, số dư, số tài khoản.
+  /// Mẫu cũng giữ 30 ngày, để còn kịp gửi đi sau khi hết 7 ngày ghi mẫu.
   Future<int> purgeOld({
     required DateTime now,
     Duration unmatchedFor = const Duration(days: 30),
-    Duration capturedFor = const Duration(days: 7),
+    Duration capturedFor = const Duration(days: 30),
   }) async {
     final e = db.notificationEvents;
     final unmatchedBefore = now.subtract(unmatchedFor).millisecondsSinceEpoch;

@@ -68,5 +68,11 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Mở trình duyệt (gửi mẫu thông báo thành issue GitHub). App không
+             có quyền mạng: mọi thứ cần mạng đi qua trình duyệt. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
     </queries>
 </manifest>
